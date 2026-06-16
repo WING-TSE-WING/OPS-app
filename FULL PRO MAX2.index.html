@@ -711,6 +711,139 @@
   </main>
 </div>
 
-<script src="./app.js"></script>
+<script>
+/* =========================
+   APP MAIN JS（內嵌版）
+   ========================= */
+
+/* ---------- 基本 UI ---------- */
+const tabs = document.querySelectorAll('.tab');
+const views = document.querySelectorAll('.panelView');
+const panelTitle = document.getElementById('panelTitle');
+const panelBadge = document.getElementById('panelBadge');
+
+tabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabs.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const tab = btn.dataset.tab;
+    views.forEach(v => v.style.display = "none");
+
+    document.getElementById("view_" + tab).style.display = "block";
+
+    panelTitle.innerText = btn.innerText;
+    panelBadge.innerText = tab;
+  });
+});
+
+/* ---------- 主題切換 ---------- */
+const btnTheme = document.getElementById("btnTheme");
+btnTheme.onclick = () => {
+  document.body.classList.toggle("light");
+};
+
+/* ---------- 基本 DATA ---------- */
+let dataRows = [];
+
+/* ---------- 分析（示例） ---------- */
+document.getElementById("btnAnalyze").onclick = () => {
+  const textarea = document.getElementById("awbList").value.trim();
+  const rows = textarea.split("\n").filter(x => x);
+
+  dataRows = rows.map((awb, i) => ({
+    awbNo: awb,
+    company: document.getElementById("assignorName").value,
+    ra: document.getElementById("raCode").value,
+    date: document.getElementById("docDate").value
+  }));
+
+  renderPreviewTable();
+};
+
+/* ---------- preview table ---------- */
+function renderPreviewTable() {
+  const tbody = document.getElementById("previewTbody");
+  tbody.innerHTML = "";
+
+  dataRows.slice(0,10).forEach((row, i) => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td style="padding:8px">${i+1}</td>
+      <td>${row.awbNo}</td>
+      <td>${row.company}</td>
+      <td>${row.ra}</td>
+      <td>${row.date}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- PDF 預覽（簡化） ---------- */
+document.getElementById("btnRenderPreview").onclick = async () => {
+  try {
+    if (!dataRows.length) {
+      alert("請先分析資料");
+      return;
+    }
+
+    const canvas = document.getElementById("pdfCanvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = 800;
+    canvas.height = 600;
+
+    ctx.fillStyle = "#111";
+    ctx.fillRect(0,0,800,600);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px Arial";
+
+    dataRows.slice(0,5).forEach((r, i) => {
+      ctx.fillText(
+        `${r.awbNo} | ${r.company} | ${r.ra}`,
+        50,
+        50 + i*40
+      );
+    });
+
+  } catch (e) {
+    alert("錯誤：" + e.message);
+  }
+};
+
+/* ---------- ZIP export（簡化） ---------- */
+document.getElementById("btnGenerateZip").onclick = async () => {
+  try {
+    if (!dataRows.length) {
+      alert("冇資料");
+      return;
+    }
+
+    const zip = new JSZip();
+
+    dataRows.forEach((r,i) => {
+      zip.file(`awb_${r.awbNo}.txt`, JSON.stringify(r,null,2));
+    });
+
+    const blob = await zip.generateAsync({ type: "blob" });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "export.zip";
+    a.click();
+
+  } catch (e) {
+    alert("錯誤：" + e.message);
+  }
+};
+
+/* ---------- 安全 fallback ---------- */
+window.addEventListener("error", e => {
+  console.error("JS Error:", e.message);
+});
+</script>
 </body>
 </html>
