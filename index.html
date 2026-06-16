@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UTK Full Pro MAX MERGED (Cards + MultiPage + Image + Groups + Base→Header)</title>
+
+  <!-- pdf-lib -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- fontkit -->
+  <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- PapaParse -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+  </script>
+
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f172a; --text:#e5e7eb; --muted:#a3aab8;
+      --border:rgba(148,163,184,.16); --brand:#3b82f6; --brand2:#60a5fa;
+      --danger:#ef4444; --shadow:0 18px 60px rgba(0,0,0,.35);
+      --radius:16px; --inputBg: rgba(15,23,42,.55);
+      --overlay: rgba(239,68,68,.92); --overlayStroke: rgba(0,0,0,.35);
+
+      /* group drop highlight */
+      --dropHover: rgba(59,130,246,.18);
+      --dropBorder: rgba(59,130,246,.55);
+    }
+    body.light{
+      --bg:#f4f6fb; --panel:#ffffff; --text:#0f172a; --muted:#5b6473;
+      --border:#e5e7eb; --shadow:0 10px 30px rgba(16,24,40,.08);
+      --inputBg: rgba(255,255,255,.9);
+      --overlay: rgba(220,38,38,.92); --overlayStroke: rgba(255,255,255,.45);
+
+      --dropHover: rgba(59,130,246,.10);
+      --dropBorder: rgba(59,130,246,.45);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .app{display:grid; grid-template-columns: 280px 1fr; min-height:100vh;}
+    .sidebar{
+      position:sticky; top:0; height:100vh;
+      border-right:1px solid var(--border);
+      padding:16px 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
+    }
+    .brand{
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      background: rgba(255,255,255,.04);
+      box-shadow: var(--shadow);
+      margin-bottom:12px;
+    }
+    .brand b{display:block; font-size:14px;}
+    .brand span{display:block; font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4;}
+    .nav{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+    .nav button{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      cursor:pointer;
+      font-weight:900;
+      text-align:left;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .nav button.active{
+      background: rgba(59,130,246,.18);
+      border-color: rgba(59,130,246,.55);
+    }
+    .badge{
+      font-size:11px;
+      color: var(--muted);
+      border:1px solid var(--border);
+      padding:3px 8px;
+      border-radius:999px;
+      background: rgba(255,255,255,.03);
+    }
+    .main{padding:18px 18px 26px;}
+    .panel{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.03);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel-hd{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:center;
+      background: linear-gradient(180deg, rgba(59,130,246,.12), rgba(255,255,255,0));
+    }
+    .panel-hd h3{margin:0; font-size:14px;}
+    .panel-bd{padding:16px;}
+    label{display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; font-weight:900;}
+    input, select, textarea{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: var(--inputBg);
+      color: var(--text);
+      outline:none;
+      font-size:14px;
+    }
+    textarea{min-height:110px; resize:vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+    @media (max-width: 980px){
+      .app{grid-template-columns: 1fr;}
+      .sidebar{position:static;height:auto;}
+      .row2,.row3{grid-template-columns:1fr;}
+    }
+    .btns{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+    .action{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:900;
+      user-select:none;
+    }
+    .action.primary{background: var(--brand); border-color:transparent; color:#fff;}
+    .action.danger{background: var(--danger); border-color:transparent; color:#fff;}
+    .action:disabled{opacity:.55; cursor:not-allowed;}
+    .status{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+      font-size:12.5px;
+      line-height:1.5;
+      display:flex; gap:10px; align-items:flex-start;
+    }
+    .status.ok{border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.10); color: var(--text);}
+    .status.bad{border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10); color: var(--text);}
+    .divider{height:1px; background: var(--border); margin:14px 0;}
+    .tiny{font-size:12px; color:var(--muted); line-height:1.55;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+
+    /* template library cards */
+    .libToolbar{display:grid; grid-template-columns: 1fr 180px 180px; gap:10px; margin-top:10px;}
+    .libGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-top:12px;}
+    .libCard{
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      background: rgba(255,255,255,.03);
+      cursor:pointer;
+      transition:.15s transform;
+    }
+    .libCard:hover{transform: translateY(-2px);}
+    .thumb{width:100%; height:140px; background: rgba(255,255,255,.04); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+    .thumb img{width:100%; height:100%; object-fit:cover;}
+    .libMeta{padding:10px 10px 12px;}
+    .libMeta b{display:block;}
+    .libMeta .tiny{margin-top:4px;}
+
+    /* Preview canvas + tabs */
+    #pageTabs{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;}
+    #pageTabs button.active{background: var(--brand); border-color: transparent; color:#fff;}
+    canvas{width:100%; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,.02);}
+
+    /* Drag rows */
+    .dragRow{border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
+    .dragRow[draggable="true"]{cursor:grab}
+    .dragRow.dragging{opacity:.6}
+
+    /* Group drop zones (Header / Body / Footer) */
+    .groupZone{
+      border:1px dashed rgba(148,163,184,.35);
+      border-radius:14px;
+      padding:10px;
+      margin-top:12px;
+      transition:.12s;
+    }
+    .groupZoneTitle{font-weight:900;color:var(--brand2);margin:0 0 8px}
+    .groupZone.drop-hover{
+      background: var(--dropHover);
+      border-color: var(--dropBorder);
+      box-shadow: 0 0 0 4px rgba(59,130,246,.12) inset;
+    }
+    .groupZone.drop-flash{animation: dropflash .18s ease-out}
+    @keyframes dropflash{
+      0%{transform:scale(1);}
+      60%{transform:scale(1.01);}
+      100%{transform:scale(1);}
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <b>UTK Full Pro MAX MERGED</b>
+      <span>卡片模板庫（縮圖/搜尋/分類）+ 多頁 Preview + 圖片欄位 + 分組拖放 + 跨頁拖曳 + Base→Header 一鍵</span>
+    </div>
+    <div class="nav">
+      <button class="tab active" data-tab="import"><span>📥 匯入</span><span class="badge">常用</span></button>
+      <button class="tab" data-tab="template"><span>📄 範本 / 模板庫</span><span class="badge">卡片</span></button>
+      <button class="tab" data-tab="font"><span>🈶 字型</span><span class="badge">CJK</span></button>
+      <button class="tab" data-tab="ra"><span>🏷️ RA</span><span class="badge">管理</span></button>
+      <button class="tab" data-tab="fields"><span>🧩 欄位</span><span class="badge">分組</span></button>
+      <button class="tab" data-tab="preview"><span>🖱️ 預覽</span><span class="badge">跨頁拖曳</span></button>
+      <button class="tab" data-tab="export"><span>📦 匯出</span><span class="badge">ZIP</span></button>
+    </div>
+    <div class="btns" style="margin-top:12px;">
+      <button class="action" id="btnTheme">🌙 / ☀️ 主題切換</button>
+    </div>
+    <div class="status" style="margin-top:12px;">
+      <div>ℹ️</div>
+      <div>
+        部署在 GitHub Pages。<br>
+        字型免上傳：<span class="mono">fonts/utk-font.ttf</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="panel">
+      <div class="panel-hd">
+        <h3 id="panelTitle">📥 匯入</h3>
+        <span class="badge" id="panelBadge">Import</span>
+      </div>
+
+      <div class="panel-bd">
+
+        <!-- IMPORT -->
+        <div class="panelView" id="view_import">
+          <div class="row3">
+            <div>
+              <label>共用 Company</label>
+              <input id="assignorName" type="text" />
+            </div>
+            <div>
+              <label>共用 RA Code</label>
+              <input id="raCode" type="text" placeholder="RA00993"/>
+            </div>
+            <div>
+              <label>共用 Date</label>
+              <input id="docDate" type="date" />
+            </div>
+          </div>
+
+          <div class="row3">
+            <div>
+              <label>日期格式</label>
+              <select id="dateFormat">
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+              </select>
+            </div>
+            <div>
+              <label>資料來源</label>
+              <select id="dataMode">
+                <option value="awb">AWB 清單</option>
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel</option>
+              </select>
+            </div>
+            <div>
+              <label>ZIP 名稱（可不填）</label>
+              <input id="zipName" type="text" placeholder="UTK_2026-05-27"/>
+            </div>
+          </div>
+
+          <!-- template download buttons -->
+          <div class="btns" style="margin-top:10px;">
+            <button class="action" id="btnDownloadCsvTemplate">CSV 模板下載（含自訂欄位）</button>
+            <button class="action" id="btnDownloadExcelTemplate">Excel 模板下載（含自訂欄位）</button>
+          </div>
+
+          <div id="mode_awb">
+            <label>AWB 清單（最多 1000）</label>
+            <textarea id="awbList" placeholder="160-00779634&#10;160-00781314"></textarea>
+          </div>
+
+          <div id="mode_csv" style="display:none;">
+            <div class="row2">
+              <div>
+                <label>上載 CSV</label>
+                <input id="csvFile" type="file" accept=".csv,text/csv"/>
+              </div>
+              <div>
+                <label>或貼 CSV</label>
+                <textarea id="csvText" placeholder="awbNo,assignorName,raCode,docDate,invoiceNo&#10;160-00779634,Nippon Express (HK) Co. Ltd.,RA00993,2026-05-27,INV001"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div id="mode_xlsx" style="display:none;">
+            <label>上載 Excel (.xlsx)</label>
+            <input id="xlsxFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+            <div class="status" id="awbMapStatus" style="display:none;"></div>
+            <div class="tiny">航班總匯（含 MAWB + UTK RA#/RACODE）會自動建立 AWB→RA 對照表並填入 AWB 清單。</div>
+          </div>
+
+          <div class="btns">
+            <button class="action" id="btnAnalyze">分析</button>
+            <button class="action" id="btnApplyAwbMap">套用 AWB→RA</button>
+            <button class="action" id="btnOpenPreview">開啟預覽</button>
+          </div>
+
+          <div class="status" id="runStatus" style="display:none;"></div>
+
+          <label>資料預覽（前10）</label>
+          <div style="overflow:auto;border:1px solid var(--border);border-radius:12px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:rgba(255,255,255,.03);color:var(--muted);">
+                  <th style="padding:10px;border-bottom:1px solid var(--border);text-align:left;">#</th>
+                  <th style="padding:10px;border-bottom:1px solid var(--border);text-align:left;">awbNo</th>
+                  <th style="padding:10px;border-bottom:1px solid var(--border);text-align:left;">company</th>
+                  <th style="padding:10px;border-bottom:1px solid var(--border);text-align:left;">ra</th>
+                  <th style="padding:10px;border-bottom:1px solid var(--border);text-align:left;">date</th>
+                </tr>
+              </thead>
+              <tbody id="previewTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TEMPLATE / LIBRARY -->
+        <div class="panelView" id="view_template" style="display:none;">
+          <div class="status">
+            <div>📁</div>
+            <div>模板庫：保存「PDF + 設定」，並提供縮圖卡片、搜尋、分類、點擊切換。</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row2">
+            <div>
+              <label>載入範本 PDF</label>
+              <input id="tplFile" type="file" accept=".pdf,application/pdf"/>
+              <div class="btns">
+                <button class="action primary" id="btnCacheTpl">存入快取</button>
+                <button class="action" id="btnLoadTplCache">從快取載入</button>
+                <button class="action danger" id="btnClearTplCache">清除快取</button>
+              </div>
+              <div class="status" id="tplStatus" style="display:none;"></div>
+            </div>
+
+            <div>
+              <label>輸出檔名標籤（##TAG）</label>
+              <input id="tplTag" type="text" placeholder="UTK"/>
+              <label style="margin-top:10px;">Template Export / Import</label>
+              <div class="btns" style="margin-top:0;">
+                <button class="action" id="btnExportConfig">匯出 JSON</button>
+                <button class="action" id="btnExportBundle">匯出 ZIP(PDF+JSON)</button>
+                <button class="action" id="btnImportConfig">匯入 JSON</button>
+                <button class="action" id="btnImportBundle">匯入 ZIP</button>
+              </div>
+              <input id="importConfigFile" type="file" accept=".json" style="display:none;">
+              <input id="importBundleFile" type="file" accept=".zip,application/zip" style="display:none;">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <label>Template Library（縮圖卡片 / 搜尋 / 分類）</label>
+          <div class="libToolbar">
+            <input id="libSearch" placeholder="搜尋模板名稱..." />
+            <select id="libCategoryFilter"></select>
+            <button class="action" id="btnLibRefresh">刷新縮圖</button>
+          </div>
+
+          <div class="row3" style="margin-top:10px;">
+            <input id="libName" placeholder="模板名稱（例如 DHL EU）"/>
+            <input id="libCategory" placeholder="分類（例如 DHL / UPS / 自訂）"/>
+            <button class="action primary" id="btnLibSave">💾 存入模板庫（PDF+設定）</button>
+          </div>
+
+          <div class="libGrid" id="libGrid"></div>
+          <div class="status" id="libStatus" style="display:none;"></div>
+
+          <div class="divider"></div>
+          <label>範本縮圖（目前載入 PDF 第1頁）</label>
+          <canvas id="tplThumb"></canvas>
+        </div>
+
+        <!-- FONT -->
+        <div class="panelView" id="view_font" style="display:none;">
+          <div class="status">
+            <div>🈶</div>
+            <div>免上傳：放 <span class="mono">fonts/utk-font.ttf</span> 再按載入。</div>
+          </div>
+          <div class="btns">
+            <button class="action primary" id="btnLoadFontFromPath">從 fonts/utk-font.ttf 載入</button>
+            <button class="action" id="btnLoadFontCache">從快取載入</button>
+            <button class="action danger" id="btnClearFontCache">清除快取</button>
+          </div>
+          <label>（後備）上傳字型（ttf/otf）</label>
+          <input id="fontFile" type="file" accept=".ttf,.otf"/>
+          <div class="btns">
+            <button class="action" id="btnCacheFont">把目前字型存入快取</button>
+          </div>
+          <div class="status" id="fontStatus" style="display:none;"></div>
+        </div>
+
+        <!-- RA -->
+        <div class="panelView" id="view_ra" style="display:none;">
+          <div class="status">
+            <div>🏷️</div>
+            <div>貼上 RA list：只取 RA code + 英文公司名。</div>
+          </div>
+
+          <label>RA List（貼上）</label>
+          <textarea id="raImportText" placeholder="RA00993 Nippon Express (HK) Co. Ltd. 香港日通有限公司"></textarea>
+          <div class="btns">
+            <button class="action primary" id="btnImportRaText">匯入</button>
+            <button class="action danger" id="btnClearRaAll">清空</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row2">
+            <div>
+              <label>Company（輸入即提示）</label>
+              <input id="raCompany" type="text" autocomplete="off"/>
+              <div id="raSuggest" style="display:none; border:1px solid var(--border); border-radius:12px; overflow:auto; max-height:240px; background:rgba(0,0,0,.25);"></div>
+            </div>
+            <div>
+              <label>RA Code</label>
+              <input id="raCodeInput" type="text" placeholder="RA00993"/>
+            </div>
+          </div>
+
+          <div class="btns">
+            <button class="action primary" id="btnSaveGroup">儲存</button>
+            <button class="action" id="btnUpdateGroup">更新</button>
+            <button class="action danger" id="btnDeleteGroup">刪除</button>
+            <button class="action" id="btnClearGroup">清空</button>
+          </div>
+
+          <label>已儲存 RA 組</label>
+          <select id="raGroupSelect"></select>
+          <div class="btns">
+            <button class="action" id="btnLoadGroup">載入到共用欄位</button>
+          </div>
+
+          <div class="status" id="raStatus" style="display:none;"></div>
+        </div>
+
+        <!-- FIELDS -->
+        <div class="panelView" id="view_fields" style="display:none;">
+          <div class="status">
+            <div>🧩</div>
+            <div>欄位支援：文字（excel/manual/var）、圖片（透明/底色/opacity）、多頁、分組（Header/Body/Footer）、拖放分組、跨頁拖曳。</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row3">
+            <div>
+              <label>Preview 行距（twoLines 用）</label>
+              <input id="lineHeightPreview" type="number" step="0.05" min="0.8" max="3" value="1.20"/>
+            </div>
+            <div>
+              <label>PDF 行距（多行值）</label>
+              <input id="lineHeightPdf" type="number" step="0.05" min="0.8" max="3" value="1.20"/>
+            </div>
+            <div>
+              <label>Preview 顯示模式</label>
+              <select id="labelValueMode">
+                <option value="sameLine">同行：Label: Value</option>
+                <option value="twoLines">兩行：Label + Value</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <label>基礎欄位顯示（關閉會自動消失）</label>
+          <div class="row3">
+            <label><input type="checkbox" id="base_awb" checked> AWB</label>
+            <label><input type="checkbox" id="base_asn" checked> Company</label>
+            <label><input type="checkbox" id="base_ra" checked> RA</label>
+          </div>
+          <div class="row3">
+            <label><input type="checkbox" id="base_dt" checked> Date</label>
+            <div></div><div></div>
+          </div>
+
+          <div class="btns" style="margin-top:10px;">
+            <button class="action primary" id="btnConvertBaseToHeader">一鍵：基礎欄位 → Header（全頁共用）</button>
+            <button class="action danger" id="btnRestoreBaseFromHeader">還原：移除 Header 基礎欄位 + 開回基礎欄位</button>
+          </div>
+          <div class="tiny">
+            說明：會把 AWB/Company/RA/Date 轉成自訂欄位（var）並放入 Header（全頁）。
+            位置/字體沿用目前基礎座標（p_awb_x…）。轉換後會自動關閉 base 顯示避免重複。
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row3">
+            <input id="newFieldLabel" placeholder="顯示名稱（Invoice No）"/>
+            <input id="newFieldKey" placeholder="資料Key（invoiceNo）"/>
+            <select id="newFieldSource">
+              <option value="excel">來源：Excel/CSV欄位</option>
+              <option value="manual">來源：固定值</option>
+              <option value="var">來源：變數（{{awb}}/{{date}}/{{company}}/{{ra}}）</option>
+              <option value="image">來源：圖片（Image）</option>
+            </select>
+          </div>
+
+          <div class="row3">
+            <input id="newFieldDefault" placeholder="manual/var 使用；excel 可留空"/>
+            <select id="newFieldGroup">
+              <option value="header">Header（全頁）</option>
+              <option value="body" selected>Body（分頁）</option>
+              <option value="footer">Footer（全頁）</option>
+            </select>
+            <button class="action primary" id="btnAddField">➕ 新增欄位</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <label>圖片欄位設定（source=image 時使用）</label>
+          <div class="row3">
+            <div>
+              <input id="imgUpload" type="file" accept="image/png,image/jpeg,image/jpg"/>
+              <div class="tiny">建議 PNG（可透明）；JPG 無透明。</div>
+            </div>
+            <div>
+              <label style="margin-top:0;">背景模式</label>
+              <select id="imgBgMode">
+                <option value="transparent">透明（保留 PNG Alpha）</option>
+                <option value="solid">實色底</option>
+              </select>
+            </div>
+            <div>
+              <label style="margin-top:0;">底色（bgColor）</label>
+              <input id="imgBgColor" type="color" value="#ffffff"/>
+            </div>
+          </div>
+
+          <div class="row3">
+            <div>
+              <label style="margin-top:0;">不透明度（opacity）</label>
+              <input id="imgOpacity" type="number" step="0.05" min="0" max="1" value="1.00"/>
+              <div class="tiny">浮水印：0.2～0.5</div>
+            </div>
+            <div>
+              <label style="margin-top:0;">預設寬度（pt）</label>
+              <input id="imgWidth" type="number" step="1" value="120"/>
+            </div>
+            <div>
+              <label style="margin-top:0;">預設高度（pt）</label>
+              <input id="imgHeight" type="number" step="1" value="120"/>
+            </div>
+          </div>
+
+          <div class="row3">
+            <div>
+              <label style="margin-top:0;">Body 新欄位預設頁（跟 Preview page）</label>
+              <select id="newFieldPage"><option value="1">第 1 頁</option></select>
+            </div>
+            <div></div><div></div>
+          </div>
+
+          <div class="btns">
+            <button class="action danger" id="btnClearFields">清空此模板欄位</button>
+          </div>
+
+          <div class="status" id="fieldStatus" style="display:none;"></div>
+
+          <label>欄位列表（Header/Body/Footer；拖放分組；Body 只顯示當前頁）</label>
+          <div id="fieldList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="panelView" id="view_preview" style="display:none;">
+          <div class="row3">
+            <div>
+              <label>Preview scale</label>
+              <input id="previewScale" type="number" value="1.5" step="0.1" min="0.5" max="3.0"/>
+            </div>
+            <div>
+              <label>預覽頁面</label>
+              <select id="previewPage"></select>
+            </div>
+            <div>
+              <label>點擊要設定的欄位</label>
+              <select id="activeField"></select>
+            </div>
+          </div>
+
+          <div id="pageTabs"></div>
+
+          <div class="btns">
+            <button class="action primary" id="btnRenderPreview">渲染預覽</button>
+            <button class="action" id="btnToggleOverlay">疊字：開/關</button>
+            <button class="action" id="btnSavePos">保存座標</button>
+            <button class="action danger" id="btnResetPos">重置座標</button>
+          </div>
+
+          <div id="canvasWrap" style="position:relative;">
+            <canvas id="pdfCanvas"></canvas>
+
+            <!-- Edge hints -->
+            <div id="pageEdgeTop"
+                 style="position:absolute; left:10px; right:10px; top:10px; height:56px; border-radius:14px;
+                        background:rgba(59,130,246,.18); border:1px solid rgba(59,130,246,.35);
+                        display:none; align-items:center; justify-content:center;
+                        backdrop-filter: blur(6px); cursor:pointer; user-select:none;">
+              <div style="font-weight:900;">⬆ 拖到這裡切到上一頁</div>
+            </div>
+
+            <div id="pageEdgeBottom"
+                 style="position:absolute; left:10px; right:10px; bottom:10px; height:56px; border-radius:14px;
+                        background:rgba(59,130,246,.18); border:1px solid rgba(59,130,246,.35);
+                        display:none; align-items:center; justify-content:center;
+                        backdrop-filter: blur(6px); cursor:pointer; user-select:none;">
+              <div style="font-weight:900;">⬇ 拖到這裡切到下一頁</div>
+            </div>
+          </div>
+
+          <div class="tiny mono" id="mouseInfo">提示：可拖拉文字/圖片；圖片右下角可縮放；拖到上下邊緣可跨頁搬欄位。</div>
+
+          <div class="divider"></div>
+
+          <label>基礎欄位座標/字體（PDF pt）</label>
+
+          <div class="row2">
+            <div>
+              <label>AWB (x,y,size)</label>
+              <div class="row3">
+                <input id="p_awb_x" type="number" step="1"/>
+                <input id="p_awb_y" type="number" step="1"/>
+                <input id="p_awb_s" type="number" step="1"/>
+              </div>
+            </div>
+            <div>
+              <label>Company (x,y,size)</label>
+              <div class="row3">
+                <input id="p_asn_x" type="number" step="1"/>
+                <input id="p_asn_y" type="number" step="1"/>
+                <input id="p_asn_s" type="number" step="1"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label>RA (x,y,size)</label>
+              <div class="row3">
+                <input id="p_ra_x" type="number" step="1"/>
+                <input id="p_ra_y" type="number" step="1"/>
+                <input id="p_ra_s" type="number" step="1"/>
+              </div>
+            </div>
+            <div>
+              <label>Date (x,y,size)</label>
+              <div class="row3">
+                <input id="p_dt_x" type="number" step="1"/>
+                <input id="p_dt_y" type="number" step="1"/>
+                <input id="p_dt_s" type="number" step="1"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="status" id="previewStatus" style="display:none;"></div>
+        </div>
+
+        <!-- EXPORT -->
+        <div class="panelView" id="view_export" style="display:none;">
+          <div class="status">
+            <div>📦</div>
+            <div>批量輸出 ZIP：每個 AWB 一份 PDF。</div>
+          </div>
+          <div class="btns">
+            <button class="action primary" id="btnGenerateZip">生成 ZIP</button>
+            <button class="action" id="btnSampleOne">下載樣本</button>
+            <button class="action danger" id="btnCancel" disabled>取消</button>
+          </div>
+          <div class="status" id="exportStatus" style="display:none;"></div>
+          <div style="margin-top:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.03)">
+            <div id="progressBar" style="height:10px;width:0%;background:linear-gradient(90deg,var(--brand),#a78bfa)"></div>
+            <div style="padding:10px 12px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <span id="progressText">尚未開始</span>
+              <span id="progressNum" class="mono">0/0</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="./script.js"></script>
+</body>
+</html>
