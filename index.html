@@ -718,6 +718,8 @@
 ========================= */
 const { PDFDocument, rgb, StandardFonts } = PDFLib;
 const $ = (id)=>document.getElementById(id);
+
+// ✅ 就放這裡
 function getCurrentDataSignature(){
   return JSON.stringify({
     awb: $("awbList")?.value || "",
@@ -727,6 +729,7 @@ function getCurrentDataSignature(){
     ra: $("raCode")?.value || ""
   });
 }
+  
 const KEY_THEME="utk_theme_v1";
 const KEY_RA_GROUPS="utk_ra_groups_fullpromax_merged";
 const KEY_POS_BASE="utk_pos_base_fullpromax_merged";
