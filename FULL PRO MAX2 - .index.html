@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UTK Full Pro MAX - Google Drive 雲端一體版</title>
+
+  <!-- 1. 引入你原本 HTML 的所有 CDN 腳本 (pdf-lib, SheetJS, PDF.js 等) -->
+  <script src="https://unpkg.com"></script>
+  <script src="https://unpkg.com"></script>
+  <script src="https://cloudflare.com"></script>
+  <script src="https://cloudflare.com"></script>
+  <script src="https://sheetjs.com"></script>
+  <script src="https://cloudflare.com"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cloudflare.com";</script>
+
+  <!-- 2. 引入 Google 官方身分驗證與 API 腳本 -->
+  <script src="https://google.com" async defer></script>
+  <script src="https://google.com" async defer></script>
+
+  <!-- 3. 引入你原本的 <style> 樣式 -->
+  <style>
+    /* ... 這裡保留你原本完整的所有 CSS 樣式 ... */
+    
+    /* 新增：Google 登入牆樣式 */
+    .login-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background: #0b1220; color: #e5e7eb; font-family: system-ui, sans-serif; text-align: center; }
+    .btn-google { background: #ffffff; color: #1f2937; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 12px; border: 1px solid #e5e7eb; font-size: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: 0.2s; }
+    .btn-google:hover { background: #f9fafb; transform: translateY(-1px); }
+    #saas-app { display: none; } /* 預設隱藏主程式 */
+    .cloud-banner { background: rgba(59,130,246,0.15); border-bottom: 1px solid rgba(59,130,246,0.3); padding: 8px 16px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+
+<body>
+
+  <!-- 🔓 關卡一：Google 帳號登入牆 -->
+  <div id="login-wall" class="login-screen">
+    <div style="max-width: 400px; padding: 32px; background: #0f172a; border: 1px solid rgba(148,163,184,.16); border-radius: 16px;">
+      <h2 style="margin: 0 0 8px 0; color: #fff;">🔥 UTK Cloud Pro MAX</h2>
+      <p style="color: #a3aab8; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">歡迎使用雲端版 SaaS。本系統採用 Google 官方安全加密連線，直接將轉檔成果存入您的個人雲端硬碟。</p>
+      <button class="btn-google" onclick="handleAuthClick()">
+        <img src="https://wikimedia.org" width="22" alt="Drive">
+        使用 Google 帳號登入並授權
+      </button>
+    </div>
+  </div>
+
+  <!-- 🚀 關卡二：驗證成功後才顯示的主應用程式 -->
+  <div id="saas-app">
+    <!-- 頂部 SaaS 狀態列 -->
+    <div class="cloud-banner">
+      <span>☁️ 雲端狀態：<b style="color: #60a5fa;">已安全連線至您的 Google Drive</b></span>
+      <button onclick="logout()" style="background:#ef4444; color:#fff; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:12px;">登出</button>
+    </div>
+
+    <!-- 你原本的應用程式 HTML Body 結構 -->
+    <div class="app">
+      <aside class="sidebar">
+        <!-- ... 這裡放入你原本的側邊欄與功能按鈕 ... -->
+        <!-- 💡 建議：你可以在這裡加一個按鈕叫「儲存至 Google Drive」 -->
+        <div class="nav">
+          <button id="btn-sync-cloud" class="action primary" style="margin-top:10px; width:100%; text-align:center; display:block;" disabled>
+            💾 處理並同步至雲端硬碟
+          </button>
+        </div>
+      </aside>
+      
+      <main class="main">
+        <!-- ... 這裡放入你原本的主面板、Canvas 預覽等 ... -->
+      </main>
+    </div>
+  </div>
+
+  <!-- ⚙️ Google API 核心商業邏輯腳本 -->
+  <script>
+    // ⚠️ 填寫第三步從 Google Cloud 取得的金鑰
+    const CLIENT_ID = '你的_GOOGLE_CLIENT_://googleusercontent.com';
+    const API_KEY = '你的_GOOGLE_API_KEY';
+    
+    // 只申請讀寫使用者「經由此 App 建立」之檔案的權限，最安全、最容易通過官方審查
+    const SCOPES = 'https://googleapis.com'; 
+
+    let tokenClient;
+    let accessToken = null;
+
+    // 初始化 Google API 客戶端
+    function gapiStart() {
+      gapi.load('client', async () => {
+        await gapi.client.init({
+          apiKey: API_KEY,
+          discoveryDocs: ["https://googleapis.com"]
+        });
+      });
+    }
+
+    // 初始化 Google 認證服務 (GIS)
+    function gisStart() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+          if (tokenResponse.access_token) {
+            accessToken = tokenResponse.access_token;
+            showMainApp(); // 驗證成功，解鎖畫面
+          }
+        },
+      });
+    }
+
+    window.onload = () => { gapiStart(); gisStart(); };
+
+    // 點擊登入
+    function handleAuthClick() {
+      // 檢查是否已有快取 Token
+      const token = google.accounts.oauth2.getAuthSubToken();
+      if (!token) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        tokenClient.requestAccessToken({ prompt: '' });
+      }
+    }
+
+    // 解鎖並顯示主程式
+    function showMainApp() {
+      document.getElementById('login-wall').style.display = 'none';
+      document.getElementById('saas-app').style.display = 'block';
+      
+      // 啟用你的雲端儲存按鈕
+      const cloudBtn = document.getElementById('btn-sync-cloud');
+      if(cloudBtn) {
+        cloudBtn.disabled = false;
+        cloudBtn.onclick = async () => {
+          // 💡 這裡對接你原本的 PDF/ZIP 產生邏輯。
+          // 範例：將處理好的 Blob 丟進去上傳
+          // const mockBlob = new Blob(["測試內容"], {type: "application/pdf"});
+          // await uploadToGoogleDrive(mockBlob, "UTK_Export_" + Date.now() + ".pdf");
+          alert('請在程式碼中將原本產生出來的 PDF/ZIP Blob 物件帶入 uploadToGoogleDrive 函數中');
+        };
+      }
+    }
+
+    // 核心功能：背景直接上傳檔案到使用者的 Google Drive
+    async function uploadToGoogleDrive(fileBlob, fileName) {
+      try {
+        const metadata = {
+          name: fileName,
+          mimeType: fileBlob.type
+        };
+
+        const formData = new FormData();
+        formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        formData.append('file', fileBlob);
+
+        const response = await fetch('https://googleapis.com', {
+          method: 'POST',
+          headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+          body: formData
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          alert('🎉 成功！檔案已安全儲存至您的 Google Drive (ID: ' + result.id + ')');
+        } else {
+          throw new Error('上傳失敗');
+        }
+      } catch (error) {
+        console.error(error);
+        alert('❌ 雲端儲存失敗，請重新登入再試。');
+      }
+    }
+
+    function logout() {
+      if (accessToken) {
+        google.accounts.oauth2.revokeToken(accessToken, () => {});
+      }
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>
