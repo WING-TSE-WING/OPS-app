@@ -1,0 +1,2370 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF Tool Pro — Offline Merge / Group / Sort / Organizer / Typewriter Pro (ZIP Import)</title>
+
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@0.563.0/dist/umd/lucide.min.js"></script>
+
+  <!-- pdf-lib (cdnjs) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+  <!-- PDF.js (cdnjs) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js";
+    }
+  </script>
+
+  <!-- JSZip -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <style>
+    :root{
+      --bg0:#0b1220;
+      --bg1:#101a33;
+      --card: rgba(255,255,255,.08);
+      --border: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+      --shadow: rgba(0,0,0,.35);
+      --accent: #7c3aed;
+      --accent2:#22c55e;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --radius: 18px;
+      --gap: 14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(124,58,237,.35), transparent 55%),
+        radial-gradient(900px 500px at 90% 25%, rgba(34,197,94,.25), transparent 55%),
+        radial-gradient(800px 500px at 40% 90%, rgba(59,130,246,.18), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
+    .app{height:100%; display:grid; grid-template-columns: 280px 1fr;}
+    .sidebar{
+      padding: 18px;
+      border-right: 1px solid rgba(255,255,255,.08);
+      background: rgba(10, 16, 32, .45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      position:relative;
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 30px var(--shadow);
+      margin-bottom: 14px;
+    }
+    .brand .logo{
+      width:38px;height:38px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(34,197,94,.75));
+      display:grid;place-items:center;
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
+    }
+    .brand h1{font-size:14px;margin:0;line-height:1.1}
+    .brand p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+    .nav{display:flex; flex-direction:column; gap:8px;}
+    .navbtn{
+      width:100%;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      cursor:pointer;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .navbtn:hover{transform: translateY(-1px); background: rgba(255,255,255,.09)}
+    .navbtn.active{
+      background: rgba(124,58,237,.20);
+      border-color: rgba(124,58,237,.45);
+      box-shadow: 0 14px 30px rgba(124,58,237,.18);
+    }
+    .navbtn .label{font-weight:800;font-size:13px}
+    .navbtn .desc{font-size:11px;color:var(--muted);margin-top:2px}
+    .navbtn .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+    .icon{width:18px;height:18px;opacity:.95}
+    .sidebarFooter{
+      position:absolute; left:18px; right:18px; bottom:18px;
+      display:flex; gap:10px;
+    }
+    .pill{
+      flex:1;
+      padding:10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      font-size:12px;
+      display:flex; gap:10px; align-items:center;
+      justify-content:center;
+    }
+    .main{display:grid; grid-template-rows:auto 1fr; padding:18px; gap:var(--gap); overflow:hidden;}
+    .topbar{display:flex; gap:var(--gap); align-items:center; justify-content:space-between;}
+    .searchBox{
+      flex:1;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px var(--shadow);
+      max-width: 820px;
+    }
+    .searchBox input{
+      width:100%;
+      border:0; outline:none;
+      background:transparent;
+      color:var(--text);
+      font-size:13px;
+    }
+    .searchBox .hint{font-size:12px;color:var(--muted);white-space:nowrap;}
+    .actions{display:flex; gap:10px; align-items:center;}
+    .btn{
+      border:0; cursor:pointer;
+      border-radius: 14px;
+      padding:10px 12px;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition:.15s ease;
+      display:flex; align-items:center; gap:10px;
+      user-select:none;
+    }
+    .btn:hover{background: rgba(255,255,255,.10); transform: translateY(-1px)}
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(59,130,246,.8));
+      border-color: rgba(255,255,255,.18);
+      box-shadow: 0 18px 40px rgba(124,58,237,.20);
+    }
+    .btn.good{
+      background: linear-gradient(135deg, rgba(34,197,94,.95), rgba(16,185,129,.85));
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn.danger{
+      background: rgba(239,68,68,.16);
+      border-color: rgba(239,68,68,.35);
+    }
+    .content{overflow:auto; padding-right:6px;}
+    .grid2{display:grid; grid-template-columns: 1.25fr .75fr; gap:var(--gap);}
+    @media (max-width: 1100px){
+      .app{grid-template-columns: 88px 1fr;}
+      .brand .txt, .navbtn .txt, .navbtn .meta, .sidebarFooter{display:none}
+      .navbtn{justify-content:center}
+      .grid2{grid-template-columns:1fr}
+    }
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 18px 50px var(--shadow);
+      padding:14px;
+    }
+    .cardHeader{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      margin-bottom: 10px;
+    }
+    .cardHeader h2{margin:0;font-size:14px;letter-spacing:.2px}
+    .cardHeader p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+    .badge{
+      font-size:11px;
+      padding:4px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .dropzone{
+      border-radius: var(--radius);
+      border: 1px dashed rgba(255,255,255,.22);
+      background: rgba(255,255,255,.04);
+      padding: 16px;
+      text-align:center;
+      transition:.15s ease;
+    }
+    .dropzone strong{display:block;margin-bottom:4px}
+    .dropzone span{color:var(--muted); font-size:12px}
+    .dropzone input{display:none}
+    .list{margin-top:12px; display:flex; flex-direction:column; gap:10px;}
+    .item{
+      display:flex; align-items:center; gap:10px;
+      padding:10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .item.dragging{opacity:.55}
+    .grab{
+      width:34px;height:34px;
+      border-radius: 12px;
+      display:grid; place-items:center;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      cursor:grab;
+      user-select:none;
+    }
+    .fname{font-weight:900; font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+    .fmeta{font-size:12px;color:var(--muted); display:flex; gap:8px; align-items:center}
+    .tag{
+      font-size:10px;
+      padding:3px 8px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .tag.good{border-color: rgba(34,197,94,.40); color: rgba(210,255,228,.95)}
+    .tag.warn{border-color: rgba(245,158,11,.40); color: rgba(255,240,210,.95)}
+    .xbtn{
+      border:0;
+      width:34px;height:34px;
+      border-radius: 12px;
+      cursor:pointer;
+      background: rgba(239,68,68,.16);
+      border: 1px solid rgba(239,68,68,.30);
+      color: var(--text);
+      display:grid;place-items:center;
+    }
+    .xbtn:hover{background: rgba(239,68,68,.22)}
+    .kv{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;}
+    .k{
+      padding:12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .k .t{font-size:11px;color:var(--muted)}
+    .k .v{font-size:18px;font-weight:950;margin-top:4px}
+    .k .v.small{font-size:13px;font-weight:800}
+    .notice{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(245,158,11,.14);
+      border: 1px solid rgba(245,158,11,.28);
+      color: rgba(255,255,255,.85);
+      font-size:12px;
+      line-height:1.45;
+    }
+    .error{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(239,68,68,.16);
+      border: 1px solid rgba(239,68,68,.35);
+      color: rgba(255,255,255,.90);
+      font-size:12px;
+      line-height:1.45;
+      display:none;
+      white-space:pre-line;
+    }
+    .sectionTitle{
+      margin: 14px 0 8px;
+      font-weight:950;
+      font-size:12px;
+      letter-spacing:.3px;
+      color: rgba(255,255,255,.85);
+    }
+    .row2{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    }
+    .select, .input, .textarea{
+      border-radius: 14px;
+      padding:10px 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--text);
+      outline:none;
+      font-size:12px;
+    }
+    .input{width:110px}
+    .textarea{width:100%; min-height:110px; resize:vertical}
+    .typeList{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+    .typeRow{
+      display:flex; align-items:center; gap:10px;
+      padding:10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .typeRow[draggable="true"]{cursor:grab}
+    .typeRow.dragging{opacity:.55}
+    .typeName{font-weight:900; font-size:13px; flex:1}
+    .miniBtn{
+      border:0; cursor:pointer;
+      border-radius: 12px;
+      padding:8px 10px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.86);
+      display:flex; gap:8px; align-items:center;
+      font-size:12px;
+      user-select:none;
+    }
+    .miniBtn:hover{background: rgba(255,255,255,.12)}
+    .miniBtn.danger{background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.30)}
+    .miniBtn.good{background: rgba(34,197,94,.18); border-color: rgba(34,197,94,.30)}
+
+    /* modal */
+    .modalBackdrop{position:fixed; inset:0; background: rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:999;}
+    .modal{width:min(1100px,100%); max-height:88vh; overflow:auto; border-radius:18px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 24px 80px rgba(0,0,0,.5); padding:14px;}
+    .modalHead{display:flex; justify-content:space-between; align-items:center; gap:10px; position:sticky; top:0; background: rgba(10,16,32,.35); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding:10px; border-radius:14px; margin-bottom:10px;}
+    .modalHead .title{font-weight:950}
+    .thumbGrid{display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:10px; padding-bottom:6px;}
+    .thumb{border-radius:14px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); padding:8px; cursor:grab; user-select:none;}
+    .thumb.dragging{opacity:.55}
+    .thumb img{width:100%; height:auto; border-radius:10px; display:block; background: rgba(255,255,255,.06);}
+    .thumb .cap{margin-top:6px; font-size:11px; color: var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .footerNote{color: var(--muted); font-size: 11px; margin-top: 10px; line-height:1.5; white-space:pre-line;}
+    code{background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); padding:1px 6px; border-radius:8px; font-size: 11px; color: rgba(255,255,255,.92);}
+
+    /* Typewriter */
+    .twStage{
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      padding: 10px;
+      overflow:auto;
+      max-height: 68vh;
+    }
+    #twCanvas{
+      display:block;
+      background:#fff;
+      border-radius: 12px;
+      box-shadow: 0 14px 30px rgba(0,0,0,.25);
+      cursor: crosshair;
+    }
+    .twListRow{
+      display:flex; align-items:center; gap:8px;
+      padding:10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .twListRow.active{
+      border-color: rgba(124,58,237,.55);
+      background: rgba(124,58,237,.16);
+    }
+    .twListRow .cap{
+      flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      font-size:12px;
+    }
+    .colorPick{
+      width:42px; height:34px; padding:0 6px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo"><i data-lucide="file-stack" class="icon"></i></div>
+      <div class="txt">
+        <h1>PDF Tool Pro</h1>
+        <p>Offline • No Upload</p>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button class="navbtn active" data-view="files">
+        <i data-lucide="files" class="icon"></i>
+        <div class="txt">
+          <div class="label">檔案</div>
+          <div class="desc">加入 / 拖曳排序</div>
+        </div>
+        <div class="meta" id="navCount">0</div>
+      </button>
+
+      <button class="navbtn" data-view="rules">
+        <i data-lucide="sliders-horizontal" class="icon"></i>
+        <div class="txt">
+          <div class="label">規則</div>
+          <div class="desc">分組 / 類型 / 模式</div>
+        </div>
+        <div class="meta">Pro</div>
+      </button>
+
+      <button class="navbtn" data-view="organize">
+        <i data-lucide="layout-grid" class="icon"></i>
+        <div class="txt">
+          <div class="label">拖頁</div>
+          <div class="desc">Page-level 排序</div>
+        </div>
+        <div class="meta">Pro</div>
+      </button>
+
+      <button class="navbtn" data-view="typewriter">
+        <i data-lucide="text-cursor-input" class="icon"></i>
+        <div class="txt">
+          <div class="label">打字機</div>
+          <div class="desc">文字框/拖拉/Resize</div>
+        </div>
+        <div class="meta">Pro</div>
+      </button>
+
+      <button class="navbtn" data-view="settings">
+        <i data-lucide="settings" class="icon"></i>
+        <div class="txt">
+          <div class="label">設定</div>
+          <div class="desc">localStorage 保存</div>
+        </div>
+      </button>
+    </nav>
+
+    <div class="sidebarFooter">
+      <div class="pill"><i data-lucide="shield-check" class="icon"></i><span>不Upload</span></div>
+      <div class="pill"><i data-lucide="lock" class="icon"></i><span>本機處理</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="searchBox">
+        <i data-lucide="search" class="icon"></i>
+        <input id="search" placeholder="搜尋檔名（例如：MAWB / RCL / X-ray）" />
+        <span class="hint">⌘/Ctrl + K</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btnPick"><i data-lucide="file-up" class="icon"></i>選 PDF/ZIP</button>
+        <button class="btn danger" id="btnClear"><i data-lucide="trash-2" class="icon"></i>清空</button>
+        <button class="btn primary" id="btnRun" disabled><i data-lucide="download" class="icon"></i>開始處理</button>
+      </div>
+    </header>
+
+    <section class="content">
+      <!-- FILES -->
+      <div class="view" id="view-files">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>加入 PDF/ZIP（拖曳改順序）</h2>
+                <p>你可以拖入檔案／拖曳清單排序（同類型微調）。</p>
+              </div>
+              <span class="badge" id="badgeFiles">Ready</span>
+            </div>
+
+            <div class="dropzone" id="dropzone">
+              <strong>拖曳 PDF / ZIP 到此處</strong>
+              <span>或按右上角「選 PDF/ZIP」</span>
+              <input id="fileInput" type="file" accept="application/pdf,application/zip,.zip" multiple />
+            </div>
+
+            <div class="error" id="libError"></div>
+            <div class="list" id="fileList"></div>
+            <div class="footerNote" id="fileNote"></div>
+          </div>
+
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>摘要</h2>
+                <p>分組 / 類型 / Smart</p>
+              </div>
+              <span class="badge" id="badgeStatus">Idle</span>
+            </div>
+
+            <div class="kv">
+              <div class="k"><div class="t">已加入檔案</div><div class="v" id="statFiles">0</div></div>
+              <div class="k"><div class="t">分組數（##）</div><div class="v" id="statGroups">0</div></div>
+              <div class="k"><div class="t">輸出模式</div><div class="v small" id="statMode">分組合併</div></div>
+              <div class="k"><div class="t">ZIP</div><div class="v small" id="statZip">開</div></div>
+            </div>
+
+            <div class="notice">
+              ✅ 如公司網絡封鎖 CDN，會顯示「Library 載入失敗」提示。
+            </div>
+
+            <div class="footerNote">
+              • PDF.js worker 需設置 <code>GlobalWorkerOptions.workerSrc</code> 並與版本一致。<br>
+              • Smart：若檔案已打字，會自動停用掃描壓縮（保留文字層）。<br>
+              • ZIP 匯入：會自動解壓 ZIP 內的 PDF 加入清單（不會上傳）。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RULES -->
+      <div class="view" id="view-rules" style="display:none">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>輸出模式</h2>
+                <p>全部合併 / 分組合併 / 單檔輸出</p>
+              </div>
+              <span class="badge">Output</span>
+            </div>
+
+            <div class="row2">
+              <select class="select" id="outMode">
+                <option value="group" selected>按 ## 分組合併（提單/批次）</option>
+                <option value="all">全部合併成 1 份</option>
+                <option value="single">每檔各自輸出</option>
+              </select>
+
+              <button class="miniBtn" id="btnRecalc"><i data-lucide="sparkles" class="icon"></i>重新偵測文字層</button>
+
+              <label class="miniBtn">
+                <input type="checkbox" id="zipOut" style="accent-color: var(--accent); transform:translateY(1px)" checked>
+                多份輸出 ZIP
+              </label>
+            </div>
+
+            <div class="sectionTitle">Smart / 壓縮（保文字優先）</div>
+            <div class="row2">
+              <label class="miniBtn">
+                <input type="checkbox" id="smart" style="accent-color: var(--accent2); transform:translateY(1px)" checked>
+                Smart：保文字優先
+              </label>
+              <label class="miniBtn">
+                <input type="checkbox" id="compress" style="accent-color: var(--warning); transform:translateY(1px)" checked>
+                壓縮掃描件（轉圖片）
+              </label>
+              <span class="tag">DPI</span>
+              <input class="input" id="dpi" type="number" min="72" max="300" value="150">
+              <span class="tag">品質</span>
+              <input class="input" id="quality" type="number" min="0.40" max="0.95" step="0.01" value="0.78">
+            </div>
+
+            <div class="notice">
+              Smart：TEXT 檔會保文字 copyPages；SCAN 檔會依 DPI/品質 render 成 JPEG 再組回 PDF（體積較細）。
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>類型排序（OFF / 全局 / 每組）</h2>
+                <p>設定 MAWB / RCL / X-RAY… 免逐個提單排頁</p>
+              </div>
+              <span class="badge">Type</span>
+            </div>
+
+            <div class="row2" style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);">
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="radio" name="typeSortMode" value="off">不排序</label>
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="radio" name="typeSortMode" value="global" checked>全局排序</label>
+              <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="radio" name="typeSortMode" value="perGroup">每組排序</label>
+              <button class="miniBtn danger" id="btnResetAll"><i data-lucide="rotate-ccw" class="icon"></i>恢復預設</button>
+            </div>
+
+            <div class="sectionTitle">全局類型順序（拖曳）</div>
+            <div class="row2">
+              <input class="select" id="newType" placeholder="新增類型，例如 POD / INV" />
+              <button class="miniBtn good" id="btnAddType"><i data-lucide="plus" class="icon"></i>加入</button>
+              <button class="miniBtn" id="btnRebuildTypes"><i data-lucide="wand-2" class="icon"></i>重建清單</button>
+            </div>
+
+            <div class="typeList" id="typeList"></div>
+            <div class="footerNote">每組模式：到「拖頁」可以為某個 group 設定自己的類型順序。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ORGANIZE -->
+      <div class="view" id="view-organize" style="display:none">
+        <div class="card">
+          <div class="cardHeader">
+            <div>
+              <h2>Page-level 排序（每個 group 載入縮圖後拖曳）</h2>
+              <p>只在需要特別插頁/重排時用；一般用類型排序已足夠。</p>
+            </div>
+            <span class="badge">Organizer</span>
+          </div>
+
+          <div class="row2">
+            <span class="tag">縮圖倍率</span>
+            <input class="input" id="thumbScale" type="number" min="0.10" max="1.00" step="0.05" value="0.25">
+            <span class="tag">每檔最大頁數</span>
+            <input class="input" id="thumbLimit" type="number" min="1" max="200" value="30">
+            <button class="miniBtn" id="btnBuildGroups"><i data-lucide="refresh-ccw" class="icon"></i>刷新 group 清單</button>
+          </div>
+
+          <div class="sectionTitle">Group 清單</div>
+          <div class="typeList" id="groupList"></div>
+          <div class="footerNote">縮圖採用 Lazy Render + 佇列（避免一次渲染幾百頁卡死）。</div>
+        </div>
+      </div>
+
+      <!-- TYPEWRITER -->
+      <div class="view" id="view-typewriter" style="display:none">
+        <div class="grid2">
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>打字機 Pro（文字框：拖拉 / Resize / 刪除）</h2>
+                <p>點畫面：建立/選取文字框；拖框移動；拖四角 Resize；Delete 可刪除</p>
+              </div>
+              <span class="badge" id="twBadge">Idle</span>
+            </div>
+
+            <div class="row2">
+              <span class="tag">檔案</span>
+              <select class="select" id="twFile"></select>
+              <span class="tag">頁</span>
+              <button class="miniBtn" id="twPrev"><i data-lucide="chevron-left" class="icon"></i></button>
+              <input class="input" id="twPage" type="number" min="1" value="1" style="width:80px">
+              <button class="miniBtn" id="twNext"><i data-lucide="chevron-right" class="icon"></i></button>
+              <span class="tag">縮放</span>
+              <input class="input" id="twZoom" type="number" min="0.25" max="3" step="0.05" value="1.2" style="width:90px">
+              <button class="miniBtn" id="twRerender"><i data-lucide="refresh-ccw" class="icon"></i>重繪</button>
+              <button class="miniBtn good" id="twNewBox"><i data-lucide="square-plus" class="icon"></i>新增文字框</button>
+              <button class="miniBtn danger" id="twDeleteSel"><i data-lucide="trash-2" class="icon"></i>刪除選取</button>
+            </div>
+
+            <div class="twStage" style="margin-top:10px">
+              <canvas id="twCanvas"></canvas>
+            </div>
+
+            <div class="footerNote" id="twHint"></div>
+          </div>
+
+          <div class="card">
+            <div class="cardHeader">
+              <div>
+                <h2>文字 / 樣式（選取文字框後編輯）</h2>
+                <p>寫回 PDF 會依文字框寬度自動換行</p>
+              </div>
+              <span class="badge">Text</span>
+            </div>
+
+            <div class="sectionTitle">內容</div>
+            <textarea id="twText" class="textarea" placeholder="選取文字框後輸入（即時套用）"></textarea>
+
+            <div class="sectionTitle">樣式</div>
+            <div class="row2">
+              <span class="tag">字型</span>
+              <select class="select" id="twFont">
+                <option value="COURIER" selected>Courier（打字機）</option>
+                <option value="HELVETICA">Helvetica</option>
+                <option value="TIMES">Times</option>
+              </select>
+              <span class="tag">大小</span>
+              <input class="input" id="twSize" type="number" min="6" max="96" value="12">
+              <span class="tag">行距</span>
+              <input class="input" id="twLine" type="number" min="1" max="2" step="0.05" value="1.2">
+              <span class="tag">顏色</span>
+              <input class="colorPick" id="twColor" type="color" value="#111111" title="選顏色" />
+            </div>
+
+            <div class="notice" style="margin-top:10px">
+              • 點 canvas：建立/選取文字框（左對齊）<br>
+              • 拖框：移動；拖四角：Resize<br>
+              • Delete：刪除選取框（非正在輸入狀態）<br>
+              • 右側清單：可單段刪除/上下移（調整疊放與輸出順序）
+            </div>
+
+            <div class="sectionTitle">本頁文字框清單</div>
+            <div class="typeList" id="twBoxList"></div>
+
+            <div class="row2" style="margin-top:10px">
+              <button class="btn primary" id="twApply"><i data-lucide="check" class="icon"></i>套用並更新此 PDF</button>
+              <button class="btn good" id="twDownload"><i data-lucide="download" class="icon"></i>下載此 PDF</button>
+              <button class="btn danger" id="twClearPage"><i data-lucide="eraser" class="icon"></i>清空本頁</button>
+            </div>
+
+            <div class="footerNote" id="twLog"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings" style="display:none">
+        <div class="card">
+          <div class="cardHeader">
+            <div>
+              <h2>設定（localStorage 保存）</h2>
+              <p>會記住：輸出模式 / 類型排序 / per-group 規則 / Smart / DPI / 品質 / ZIP</p>
+            </div>
+            <span class="badge">Local</span>
+          </div>
+
+          <div class="notice">
+            localStorage 只能存字串；所以設定用 <code>JSON.stringify()</code> 存、<code>JSON.parse()</code> 取回。
+          </div>
+
+          <div class="row2" style="margin-top:10px">
+            <button class="miniBtn danger" id="btnClearStorage"><i data-lucide="trash" class="icon"></i>清除所有保存設定</button>
+          </div>
+
+          <div class="footerNote" id="settingsDump"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== Modal: Organizer ===== -->
+<div class="modalBackdrop" id="modalBack">
+  <div class="modal">
+    <div class="modalHead">
+      <div>
+        <div class="title" id="modalTitle">Page Organizer</div>
+        <div class="tag" id="modalSub">拖曳縮圖改頁序</div>
+      </div>
+      <div class="row2">
+        <button class="miniBtn" id="btnSavePlan"><i data-lucide="save" class="icon"></i>儲存頁序</button>
+        <button class="miniBtn" id="btnClearPlan"><i data-lucide="eraser" class="icon"></i>清除頁序</button>
+        <button class="miniBtn danger" id="btnCloseModal"><i data-lucide="x" class="icon"></i>關閉</button>
+      </div>
+    </div>
+
+    <div class="thumbGrid" id="thumbGrid"></div>
+    <div class="footerNote" id="modalNote"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== Library self-check =====
+  const libError = document.getElementById('libError');
+  const missing = [];
+  if (!window.PDFLib) missing.push('pdf-lib');
+  if (!window.pdfjsLib) missing.push('pdf.js');
+  if (!window.JSZip) missing.push('jszip');
+  if (!window.lucide) missing.push('lucide');
+  if (missing.length){
+    libError.style.display = 'block';
+    libError.textContent = 'Library 載入失敗：' + missing.join(', ') + '。請檢查公司網絡是否封鎖 CDN。';
+  }
+  try { lucide.createIcons(); } catch {}
+
+  // ===== DOM =====
+  const nav = document.getElementById('nav');
+  const navCount = document.getElementById('navCount');
+  const search = document.getElementById('search');
+  const btnPick = document.getElementById('btnPick');
+  const btnClear = document.getElementById('btnClear');
+  const btnRun = document.getElementById('btnRun');
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+  const badgeFiles = document.getElementById('badgeFiles');
+  const badgeStatus = document.getElementById('badgeStatus');
+  const statFiles = document.getElementById('statFiles');
+  const statGroups = document.getElementById('statGroups');
+  const statMode = document.getElementById('statMode');
+  const statZip = document.getElementById('statZip');
+
+  // rules
+  const outMode = document.getElementById('outMode');
+  const zipOut = document.getElementById('zipOut');
+  const smart = document.getElementById('smart');
+  const compress = document.getElementById('compress');
+  const dpi = document.getElementById('dpi');
+  const quality = document.getElementById('quality');
+  const btnResetAll = document.getElementById('btnResetAll');
+  const btnAddType = document.getElementById('btnAddType');
+  const btnRebuildTypes = document.getElementById('btnRebuildTypes');
+  const newType = document.getElementById('newType');
+  const typeList = document.getElementById('typeList');
+  const btnRecalc = document.getElementById('btnRecalc');
+
+  // organizer
+  const thumbScale = document.getElementById('thumbScale');
+  const thumbLimit = document.getElementById('thumbLimit');
+  const groupList = document.getElementById('groupList');
+  const btnBuildGroups = document.getElementById('btnBuildGroups');
+
+  // settings
+  const btnClearStorage = document.getElementById('btnClearStorage');
+  const settingsDump = document.getElementById('settingsDump');
+
+  // modal
+  const modalBack = document.getElementById('modalBack');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalSub = document.getElementById('modalSub');
+  const thumbGrid = document.getElementById('thumbGrid');
+  const modalNote = document.getElementById('modalNote');
+  const btnCloseModal = document.getElementById('btnCloseModal');
+  const btnSavePlan = document.getElementById('btnSavePlan');
+  const btnClearPlan = document.getElementById('btnClearPlan');
+
+  // typewriter
+  const twBadge = document.getElementById('twBadge');
+  const twFile = document.getElementById('twFile');
+  const twPrev = document.getElementById('twPrev');
+  const twNext = document.getElementById('twNext');
+  const twPage = document.getElementById('twPage');
+  const twZoom = document.getElementById('twZoom');
+  const twRerender = document.getElementById('twRerender');
+  const twCanvas = document.getElementById('twCanvas');
+  const twHint = document.getElementById('twHint');
+  const twText = document.getElementById('twText');
+  const twFont = document.getElementById('twFont');
+  const twSize = document.getElementById('twSize');
+  const twLine = document.getElementById('twLine');
+  const twColor = document.getElementById('twColor');
+  const twBoxList = document.getElementById('twBoxList');
+  const twNewBox = document.getElementById('twNewBox');
+  const twDeleteSel = document.getElementById('twDeleteSel');
+  const twApply = document.getElementById('twApply');
+  const twDownload = document.getElementById('twDownload');
+  const twClearPage = document.getElementById('twClearPage');
+  const twLog = document.getElementById('twLog');
+
+  // ===== Storage =====
+  const STORE_KEY = 'pdfToolPro_full_v1';
+  const DEFAULTS = {
+    outMode: 'group',
+    zipOut: true,
+    smart: true,
+    compress: true,
+    dpi: 150,
+    quality: 0.78,
+    typeSortMode: 'global', // off / global / perGroup
+    globalTypeOrder: ['MAWB','RCL','X-RAY','OTHER'],
+    perGroupTypeOrder: {},
+    pagePlans: {},
+    thumbScale: 0.25,
+    thumbLimit: 30
+  };
+  let state = structuredClone(DEFAULTS);
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      state = {...state, ...obj};
+    }catch{}
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch{}
+  }
+  function resetState(){
+    state = structuredClone(DEFAULTS);
+    saveState();
+    applyStateToUI();
+  }
+
+  // ===== App data =====
+  let files = []; // {id,name,buf,size,group,type,classification,hasTypewriterEdits?}
+  let currentGroupInModal = null;
+
+  // ===== Helpers =====
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+  const bytesToMB = (b) => (b/1024/1024).toFixed(2);
+  function sanitizeFileName(s){ return (s||'').replace(/[\\/:*?"<>|]/g, "_").trim(); }
+  function baseName(n){ return (n||'').replace(/\.pdf$/i,''); }
+  function normalizeType(t){
+    let x = (t||'').trim().toUpperCase();
+    if (x === 'XRAY') x = 'X-RAY';
+    return x || 'OTHER';
+  }
+  function inferTypeFromName(name){
+    if ((name||'').includes('##')){
+      const parts = name.split('##');
+      if (parts[1]) return normalizeType(parts[1].replace(/\.pdf$/i,''));
+    }
+    const u = (name||'').toUpperCase();
+    const rules = [
+      ['MAWB', /\bMAWB\b/],
+      ['RCL',  /\bRCL\b/],
+      ['X-RAY',/\bX[\-\s]?RAY\b|\bXRAY\b/],
+      ['HAWB', /\bHAWB\b/],
+      ['INV',  /\bINV\b|\bINVOICE\b/],
+      ['POD',  /\bPOD\b/],
+    ];
+    for (const [t,re] of rules){
+      if (re.test(u)) return t;
+    }
+    return 'OTHER';
+  }
+  function getGroupKey(name){
+    const m = (name||'').match(/^(.+?)##/);
+    if (m && m[1]) return sanitizeFileName(m[1]);
+    const n = baseName(name);
+    const m2 = n.match(/^([A-Za-z0-9-]{6,})/);
+    return sanitizeFileName(m2 ? m2[1] : n);
+  }
+  function getGroups(){
+    const map = new Map();
+    for (const f of files){
+      if (!map.has(f.group)) map.set(f.group, []);
+      map.get(f.group).push(f);
+    }
+    return map;
+  }
+  function getTypeOrderForGroup(groupKey){
+    if (state.typeSortMode === 'off') return null;
+    if (state.typeSortMode === 'perGroup' && state.perGroupTypeOrder[groupKey]) return state.perGroupTypeOrder[groupKey];
+    return state.globalTypeOrder;
+  }
+  function typeRank(t, groupKey){
+    const order = getTypeOrderForGroup(groupKey);
+    if (!order) return 0;
+    const idx = order.indexOf(t);
+    return idx === -1 ? 999 : idx;
+  }
+
+  function updateStats(){
+    statFiles.textContent = String(files.length);
+    navCount.textContent = String(files.length);
+    statGroups.textContent = String(getGroups().size);
+    statMode.textContent =
+      state.outMode==='group' ? '分組合併' :
+      state.outMode==='all'   ? '全部合併' : '單檔輸出';
+    statZip.textContent = state.zipOut ? '開' : '關';
+    badgeStatus.textContent = files.length ? 'Ready' : 'Idle';
+    badgeFiles.textContent = 'Ready';
+    btnRun.disabled = (state.outMode==='all') ? (files.length<2) : (files.length<1);
+  }
+
+  // ===== Drag sort =====
+  function enableDragSort(container, selector, onChanged){
+    let dragging = null;
+    container.addEventListener('dragstart', (e) => {
+      const el = e.target.closest(selector);
+      if (!el) return;
+      dragging = el;
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain','');
+    });
+    container.addEventListener('dragend', (e) => {
+      const el = e.target.closest(selector);
+      if (el) el.classList.remove('dragging');
+      dragging = null;
+      onChanged && onChanged();
+    });
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const target = e.target.closest(selector);
+      if (!dragging || !target || target===dragging) return;
+      const rect = target.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height/2;
+      container.insertBefore(dragging, after ? target.nextSibling : target);
+    });
+  }
+
+  // ===== Render file list =====
+  function renderFiles(){
+    const q = (search.value||'').trim().toLowerCase();
+    const show = q ? files.filter(f => f.name.toLowerCase().includes(q)) : files;
+    fileList.innerHTML = '';
+    for (const f of show){
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.draggable = true;
+      row.dataset.id = f.id;
+
+      const clsTag =
+        f.classification==='TEXT' ? `<span class="tag good">保文字</span>` :
+        f.classification==='SCAN' ? `<span class="tag warn">掃描</span>` :
+        `<span class="tag">混合</span>`;
+
+      const typedTag = f.hasTypewriterEdits ? `<span class="tag good">已打字</span>` : '';
+
+      row.innerHTML = `
+        <div class="grab" title="拖曳排序"><i data-lucide="grip-vertical" class="icon"></i></div>
+        <div class="fname" title="${f.name}">${f.name}</div>
+        <div class="fmeta">
+          <span class="tag">${f.group}</span>
+          <span class="tag">${f.type}</span>
+          ${clsTag}
+          ${typedTag}
+          <span class="tag">${bytesToMB(f.size)}MB</span>
+        </div>
+        <button class="xbtn" data-del="${f.id}" title="移除"><i data-lucide="x" class="icon"></i></button>
+      `;
+      fileList.appendChild(row);
+    }
+
+    // remove
+    fileList.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.del;
+        files = files.filter(x=>x.id!==id);
+        for (const g of Object.keys(state.pagePlans||{})){
+          state.pagePlans[g] = (state.pagePlans[g]||[]).filter(p=>p.fileId!==id);
+        }
+        saveState();
+        rebuildTypeFromFiles();
+        renderFiles();
+        buildGroupList();
+        updateStats();
+        twRefreshFileOptions();
+      });
+    });
+
+    // drag sort affects master files order
+    enableDragSort(fileList, '.item[draggable="true"]', ()=>{
+      const ids = Array.from(fileList.querySelectorAll('.item')).map(x=>x.dataset.id);
+      files.sort((a,b)=> ids.indexOf(a.id) - ids.indexOf(b.id));
+      renderFiles();
+    });
+
+    try { lucide.createIcons(); } catch {}
+    updateStats();
+
+    document.getElementById('fileNote').textContent =
+`快捷鍵：Ctrl/⌘ + K 聚焦搜尋
+分類：group=檔名前綴(##前)；type=##後或檔名關鍵字
+Smart：TEXT=保文字 copyPages；SCAN=可壓縮成圖片 PDF
+打字機：已打字檔案會自動停用掃描壓縮（保留文字層）
+ZIP：可直接拖 ZIP（會自動解壓 ZIP 內所有 PDF）`;
+  }
+
+  // ===== File input / drop (ZIP import enabled) =====
+  async function addFileObjects(list){
+    const arr = Array.from(list || []);
+    if (!arr.length) return;
+
+    badgeStatus.textContent = 'Loading…';
+
+    for (const f of arr){
+      try{
+        const name = String(f?.name || '');
+        const lower = name.toLowerCase();
+
+        const isPdf =
+          (f.type === 'application/pdf') ||
+          lower.endsWith('.pdf');
+
+        const isZip =
+          lower.endsWith('.zip') ||
+          f.type === 'application/zip' ||
+          f.type === 'application/x-zip-compressed';
+
+        if (isPdf){
+          const buf = await f.arrayBuffer();
+          const id = uid();
+          files.push({
+            id,
+            name: f.name,
+            buf,
+            size: f.size,
+            group: getGroupKey(f.name),
+            type: inferTypeFromName(f.name),
+            classification: 'MIXED',
+            hasTypewriterEdits: false
+          });
+          continue;
+        }
+
+        if (isZip){
+          if (!window.JSZip){
+            libError.style.display = 'block';
+            libError.textContent = '無法匯入 ZIP：JSZip 未載入。請檢查公司網絡是否封鎖 CDN。';
+            continue;
+          }
+
+          const zipBuf = await f.arrayBuffer();
+          const zip = await JSZip.loadAsync(zipBuf);
+
+          const pdfEntries = [];
+          zip.forEach((relPath, entry) => {
+            const en = String(entry?.name || '').toLowerCase();
+            if (!entry.dir && en.endsWith('.pdf')) pdfEntries.push(entry);
+          });
+
+          if (!pdfEntries.length){
+            libError.style.display = 'block';
+            libError.textContent = 'ZIP 內沒有找到 PDF：' + (f.name || '');
+            continue;
+          }
+
+          pdfEntries.sort((a,b) => String(a.name).localeCompare(String(b.name)));
+
+          for (const entry of pdfEntries){
+            const buf = await entry.async('arraybuffer');
+            const id = uid();
+            const parts = String(entry.name || '').split('/');
+            const fname = parts[parts.length - 1] || entry.name;
+
+            files.push({
+              id,
+              name: fname,
+              buf,
+              size: buf.byteLength || 0,
+              group: getGroupKey(fname),
+              type: inferTypeFromName(fname),
+              classification: 'MIXED',
+              hasTypewriterEdits: false
+            });
+          }
+          continue;
+        }
+
+        // ignore others
+      }catch(err){
+        console.error(err);
+        libError.style.display='block';
+        libError.textContent='加入檔案失敗：' + String(f && f.name ? f.name : '') + '\n' + String(err);
+      }
+    }
+
+    rebuildTypeFromFiles();
+    await classifyAllFiles();
+    renderFiles();
+    buildGroupList();
+    badgeStatus.textContent = 'Ready';
+    await twRefreshFileOptions();
+  }
+
+  // ===== Type list =====
+  function renderTypeList(){
+    typeList.innerHTML = '';
+    for (const t of state.globalTypeOrder){
+      const row = document.createElement('div');
+      row.className = 'typeRow';
+      row.draggable = true;
+      row.dataset.type = t;
+      row.innerHTML = `
+        <div class="grab"><i data-lucide="grip-vertical" class="icon"></i></div>
+        <div class="typeName">${t}</div>
+        <button class="miniBtn danger" data-rmtype="${t}">
+          <i data-lucide="trash-2" class="icon"></i>刪
+        </button>
+      `;
+      typeList.appendChild(row);
+    }
+
+    enableDragSort(typeList, '.typeRow[draggable="true"]', ()=>{
+      state.globalTypeOrder = Array.from(typeList.querySelectorAll('.typeRow')).map(r=>r.dataset.type);
+      state.globalTypeOrder = [...state.globalTypeOrder.filter(x=>x!=='OTHER'), 'OTHER'];
+      saveState();
+      renderTypeList();
+      buildGroupList();
+      dumpSettings();
+    });
+
+    typeList.querySelectorAll('[data-rmtype]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const t = btn.dataset.rmtype;
+        if (t==='OTHER') return;
+        state.globalTypeOrder = state.globalTypeOrder.filter(x=>x!==t);
+        saveState();
+        renderTypeList();
+        buildGroupList();
+        dumpSettings();
+      });
+    });
+
+    document.querySelectorAll('input[name="typeSortMode"]').forEach(r=>{
+      r.checked = (r.value === state.typeSortMode);
+    });
+
+    try { lucide.createIcons(); } catch {}
+  }
+
+  function rebuildTypeFromFiles(){
+    const set = new Set(files.map(f=>f.type));
+    const current = state.globalTypeOrder || [];
+    const merged = [
+      ...current.filter(t=>set.has(t)),
+      ...Array.from(set).filter(t=>!current.includes(t)),
+    ];
+    state.globalTypeOrder = [...merged.filter(t=>t!=='OTHER'), 'OTHER'];
+    saveState();
+    renderTypeList();
+  }
+
+  // ===== PDF.js text layer detect =====
+  async function classifyPdfByText(buf){
+    const task = pdfjsLib.getDocument({ data: buf });
+    const pdf = await task.promise;
+    const pagesToCheck = Math.min(3, pdf.numPages);
+    let totalItems=0,totalChars=0;
+    for (let p=1;p<=pagesToCheck;p++){
+      const page = await pdf.getPage(p);
+      const tc = await page.getTextContent();
+      totalItems += (tc.items||[]).length;
+      for (const it of (tc.items||[])){
+        if (it && typeof it.str === 'string') totalChars += it.str.length;
+      }
+    }
+    const hasText = (totalChars >= 50) || (totalItems >= 20);
+    const isLikelyScan = (totalChars < 10) && (totalItems < 5);
+    return hasText ? 'TEXT' : (isLikelyScan ? 'SCAN' : 'MIXED');
+  }
+  async function classifyAllFiles(){
+    if (!window.pdfjsLib) return;
+    for (const f of files){
+      try{ f.classification = await classifyPdfByText(f.buf); }
+      catch{ f.classification = 'MIXED'; }
+    }
+  }
+
+  // ===== Build group list in organize view =====
+  function buildGroupList(){
+    groupList.innerHTML = '';
+    const groups = getGroups();
+    for (const [g, arr] of groups.entries()){
+      const hasPlan = (state.pagePlans[g] && state.pagePlans[g].length);
+      const hasPerType = !!state.perGroupTypeOrder[g];
+      const row = document.createElement('div');
+      row.className = 'typeRow';
+      row.innerHTML = `
+        <div class="grab"><i data-lucide="layers" class="icon"></i></div>
+        <div class="typeName">${g}</div>
+        <span class="tag">${arr.length} 檔</span>
+        <span class="tag">${hasPlan ? '已排頁 ✅' : '未排頁'}</span>
+        <span class="tag">${hasPerType ? '此組類型 ✅' : '此組類型—'}</span>
+        <button class="miniBtn" data-open="${g}">
+          <i data-lucide="image" class="icon"></i>載入縮圖
+        </button>
+        <button class="miniBtn" data-edittypes="${g}">
+          <i data-lucide="list-ordered" class="icon"></i>此組類型
+        </button>
+        <button class="miniBtn danger" data-clear="${g}">
+          <i data-lucide="eraser" class="icon"></i>清除
+        </button>
+      `;
+      groupList.appendChild(row);
+    }
+
+    groupList.querySelectorAll('[data-open]').forEach(btn=>{
+      btn.addEventListener('click', () => openOrganizer(btn.dataset.open));
+    });
+    groupList.querySelectorAll('[data-clear]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const g = btn.dataset.clear;
+        delete state.pagePlans[g];
+        delete state.perGroupTypeOrder[g];
+        saveState();
+        buildGroupList();
+      });
+    });
+    groupList.querySelectorAll('[data-edittypes]').forEach(btn=>{
+      btn.addEventListener('click', () => editGroupTypes(btn.dataset.edittypes));
+    });
+
+    try{ lucide.createIcons(); }catch{}
+    updateStats();
+  }
+
+  // ===== Per-group type editor (reuse modal as simple list) =====
+  function editGroupTypes(groupKey){
+    const groupFiles = getGroups().get(groupKey) || [];
+    const typesInGroup = Array.from(new Set(groupFiles.map(f=>f.type)));
+    const base = state.perGroupTypeOrder[groupKey] || state.globalTypeOrder;
+    const merged = [
+      ...base.filter(t=>typesInGroup.includes(t)),
+      ...typesInGroup.filter(t=>!base.includes(t)),
+    ];
+    const merged2 = [...merged.filter(t=>t!=='OTHER'), 'OTHER'];
+
+    modalBack.style.display = 'flex';
+    currentGroupInModal = groupKey;
+    modalTitle.textContent = `此組類型排序：${groupKey}`;
+    modalSub.textContent = `拖曳調整 ${groupKey} 的類型順序（只影響此組）`;
+    thumbGrid.innerHTML = '';
+
+    for (const t of merged2){
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.draggable = true;
+      div.dataset.t = t;
+      div.innerHTML = `
+        <img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='100%25' height='100%25' rx='18' fill='%23141b2e'/%3E%3Ctext x='50%25' y='54%25' font-size='20' fill='%23ffffff' text-anchor='middle' font-family='Arial'%3E${encodeURIComponent(t)}%3C/text%3E%3C/svg%3E" />
+        <div class="cap">${t}</div>
+      `;
+      thumbGrid.appendChild(div);
+    }
+
+    enableDragSort(thumbGrid, '.thumb[draggable="true"]', ()=>{});
+    modalNote.textContent =
+`• 儲存：會寫入此組 perGroupTypeOrder
+• 清除：刪除此組設定（回到全局）`;
+
+    btnSavePlan.onclick = () => {
+      const order = Array.from(thumbGrid.querySelectorAll('.thumb')).map(x=>x.dataset.t);
+      state.perGroupTypeOrder[groupKey] = order;
+      saveState();
+      closeModal();
+      buildGroupList();
+    };
+    btnClearPlan.onclick = () => {
+      delete state.perGroupTypeOrder[groupKey];
+      saveState();
+      closeModal();
+      buildGroupList();
+    };
+  }
+
+  // ===== Page organizer with lazy thumbs =====
+  const thumbCache = new Map();
+  const pdfDocCache = new Map();
+  const renderQueues = new Map();
+
+  async function getPdfJsDoc(file){
+    if (pdfDocCache.has(file.id)) return pdfDocCache.get(file.id);
+    const task = pdfjsLib.getDocument({ data: file.buf });
+    const pdf = await task.promise;
+    pdfDocCache.set(file.id, pdf);
+    return pdf;
+  }
+
+  async function renderThumbDataURL(file, pageIndex, scale){
+    const key = `${file.id}:${pageIndex}:${scale}`;
+    if (thumbCache.has(key)) return thumbCache.get(key);
+
+    const pdf = await getPdfJsDoc(file);
+    const page = await pdf.getPage(pageIndex+1);
+    const vp = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const url = canvas.toDataURL('image/jpeg', 0.82);
+    thumbCache.set(key, url);
+    return url;
+  }
+
+  function getGroupQueue(groupKey){
+    if (!renderQueues.has(groupKey)){
+      renderQueues.set(groupKey, {queue:[], running:0, max:2, stopped:false});
+    }
+    return renderQueues.get(groupKey);
+  }
+
+  function pumpQueue(groupKey){
+    const st = getGroupQueue(groupKey);
+    while (!st.stopped && st.running < st.max && st.queue.length){
+      const job = st.queue.shift();
+      st.running++;
+      job().finally(()=>{
+        st.running--;
+        pumpQueue(groupKey);
+      });
+    }
+  }
+
+  async function openOrganizer(groupKey){
+    currentGroupInModal = groupKey;
+    modalBack.style.display = 'flex';
+    modalTitle.textContent = `Page Organizer：${groupKey}`;
+    modalSub.textContent = `載入縮圖後拖曳改頁序（只影響此組輸出）`;
+    thumbGrid.innerHTML = '';
+    modalNote.textContent = '建立縮圖中…';
+
+    const limitPerFile = Math.max(1, Math.min(200, Number(thumbLimit.value||30)));
+    const scale = Math.max(0.10, Math.min(1.0, Number(thumbScale.value||0.25)));
+    const groupFiles = (getGroups().get(groupKey) || []);
+
+    if (!state.pagePlans[groupKey] || !state.pagePlans[groupKey].length){
+      const sortedFiles = [...groupFiles].sort((a,b)=> typeRank(a.type, groupKey) - typeRank(b.type, groupKey));
+      const plan = [];
+      for (const f of sortedFiles){
+        const pdfDoc = await PDFLib.PDFDocument.load(f.buf);
+        const pageCount = pdfDoc.getPageCount();
+        const take = Math.min(pageCount, limitPerFile);
+        for (let i=0;i<take;i++) plan.push({fileId:f.id, pageIndex:i});
+      }
+      state.pagePlans[groupKey] = plan;
+      saveState();
+    }
+
+    const plan = state.pagePlans[groupKey] || [];
+    for (const entry of plan){
+      const f = files.find(x=>x.id===entry.fileId);
+      if (!f) continue;
+
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.draggable = true;
+      div.dataset.fileId = f.id;
+      div.dataset.pageIndex = String(entry.pageIndex);
+      div.dataset.scale = String(scale);
+      div.innerHTML = `
+        <img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='320'%3E%3Crect width='100%25' height='100%25' rx='18' fill='%23141b2e'/%3E%3Ctext x='50%25' y='50%25' font-size='18' fill='%23ffffff' text-anchor='middle' font-family='Arial'%3ELoading…%3C/text%3E%3C/svg%3E" />
+        <div class="cap">${f.type} • ${baseName(f.name)} • p${entry.pageIndex+1}</div>
+      `;
+      thumbGrid.appendChild(div);
+    }
+
+    enableDragSort(thumbGrid, '.thumb[draggable="true"]', ()=>{});
+
+    const st = getGroupQueue(groupKey);
+    st.queue.length = 0; st.running = 0; st.stopped = false;
+
+    const obs = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if (!entry.isIntersecting) return;
+        const el = entry.target;
+        obs.unobserve(el);
+        st.queue.push(async ()=>{
+          const fileId = el.dataset.fileId;
+          const pageIndex = Number(el.dataset.pageIndex);
+          const sc = Number(el.dataset.scale);
+          const f = files.find(x=>x.id===fileId);
+          if (!f) return;
+          const url = await renderThumbDataURL(f, pageIndex, sc);
+          const img = el.querySelector('img');
+          if (img) img.src = url;
+        });
+        pumpQueue(groupKey);
+      });
+    }, {root:null, rootMargin:'300px', threshold:0.01});
+
+    thumbGrid.querySelectorAll('.thumb').forEach(el=>obs.observe(el));
+
+    modalNote.textContent =
+`• 已建立縮圖清單（Lazy Render 中）
+• 儲存頁序後，該組輸出會按此頁序抽頁合併`;
+
+    btnSavePlan.onclick = () => {
+      const newPlan = Array.from(thumbGrid.querySelectorAll('.thumb')).map(el=>({
+        fileId: el.dataset.fileId,
+        pageIndex: Number(el.dataset.pageIndex)
+      }));
+      state.pagePlans[groupKey] = newPlan;
+      saveState();
+      closeModal();
+      buildGroupList();
+    };
+    btnClearPlan.onclick = () => {
+      delete state.pagePlans[groupKey];
+      saveState();
+      closeModal();
+      buildGroupList();
+    };
+  }
+
+  function closeModal(){
+    modalBack.style.display = 'none';
+    currentGroupInModal = null;
+    thumbGrid.innerHTML = '';
+    modalNote.textContent = '';
+  }
+  btnCloseModal.addEventListener('click', closeModal);
+  modalBack.addEventListener('click', (e)=>{ if (e.target === modalBack) closeModal(); });
+
+  // ===== Apply state to UI =====
+  function applyStateToUI(){
+    outMode.value = state.outMode;
+    zipOut.checked = !!state.zipOut;
+    smart.checked = !!state.smart;
+    compress.checked = !!state.compress;
+    dpi.value = String(state.dpi);
+    quality.value = String(state.quality);
+    thumbScale.value = String(state.thumbScale);
+    thumbLimit.value = String(state.thumbLimit);
+
+    document.querySelectorAll('input[name="typeSortMode"]').forEach(r=>{
+      r.checked = (r.value === state.typeSortMode);
+    });
+
+    renderTypeList();
+    updateStats();
+    dumpSettings();
+  }
+
+  function dumpSettings(){
+    settingsDump.textContent =
+`目前保存設定（localStorage）：
+outMode=${state.outMode}
+zipOut=${state.zipOut}
+smart=${state.smart}
+compress=${state.compress}
+dpi=${state.dpi}
+quality=${state.quality}
+typeSortMode=${state.typeSortMode}
+globalTypeOrder=${JSON.stringify(state.globalTypeOrder)}
+perGroupTypeOrder(keys)=${Object.keys(state.perGroupTypeOrder||{}).join(', ')||'—'}
+pagePlans(keys)=${Object.keys(state.pagePlans||{}).join(', ')||'—'}
+thumbScale=${state.thumbScale}
+thumbLimit=${state.thumbLimit}
+（你可以按「清除所有保存設定」回到預設）`;
+  }
+
+  // ===== Events: navigation =====
+  nav.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.navbtn');
+    if (!btn) return;
+    nav.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.dataset.view;
+    document.querySelectorAll('.view').forEach(v=>v.style.display='none');
+    document.getElementById('view-'+view).style.display = 'block';
+    if (view === 'typewriter') twRender();
+  });
+
+  // search shortcut
+  document.addEventListener('keydown', (e)=>{
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){
+      e.preventDefault();
+      search.focus();
+    }
+  });
+  search.addEventListener('input', ()=> renderFiles());
+
+  // file add
+  btnPick.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', (e)=> addFileObjects(e.target.files));
+
+  dropzone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropzone.style.background='rgba(255,255,255,.06)'; });
+  dropzone.addEventListener('dragleave', ()=>{ dropzone.style.background='rgba(255,255,255,.04)'; });
+  dropzone.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    dropzone.style.background='rgba(255,255,255,.04)';
+    addFileObjects(e.dataTransfer.files);
+  });
+
+  btnClear.addEventListener('click', ()=>{
+    files = [];
+    state.pagePlans = {};
+    saveState();
+    renderFiles();
+    buildGroupList();
+    updateStats();
+    twRefreshFileOptions();
+  });
+
+  // rules bindings
+  outMode.addEventListener('change', ()=>{ state.outMode = outMode.value; saveState(); updateStats(); dumpSettings(); });
+  zipOut.addEventListener('change', ()=>{ state.zipOut = zipOut.checked; saveState(); updateStats(); dumpSettings(); });
+  smart.addEventListener('change', ()=>{ state.smart = smart.checked; saveState(); dumpSettings(); });
+  compress.addEventListener('change', ()=>{ state.compress = compress.checked; saveState(); dumpSettings(); });
+  dpi.addEventListener('change', ()=>{ state.dpi = Number(dpi.value||150); saveState(); dumpSettings(); });
+  quality.addEventListener('change', ()=>{ state.quality = Number(quality.value||0.78); saveState(); dumpSettings(); });
+
+  document.querySelectorAll('input[name="typeSortMode"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      state.typeSortMode = r.value;
+      saveState();
+      buildGroupList();
+      dumpSettings();
+    });
+  });
+
+  btnResetAll.addEventListener('click', ()=>{
+    resetState();
+    rebuildTypeFromFiles();
+    buildGroupList();
+    renderFiles();
+    updateStats();
+  });
+
+  btnAddType.addEventListener('click', ()=>{
+    const t = normalizeType(newType.value);
+    if (!t) return;
+    if (!state.globalTypeOrder.includes(t)){
+      state.globalTypeOrder = [...state.globalTypeOrder.filter(x=>x!=='OTHER'), t, 'OTHER'];
+      saveState();
+      renderTypeList();
+      buildGroupList();
+      dumpSettings();
+    }
+    newType.value='';
+  });
+
+  btnRebuildTypes.addEventListener('click', ()=>{
+    rebuildTypeFromFiles();
+    buildGroupList();
+    dumpSettings();
+  });
+
+  btnRecalc.addEventListener('click', async ()=>{
+    badgeStatus.textContent = 'Detecting…';
+    await classifyAllFiles();
+    renderFiles();
+    badgeStatus.textContent = 'Ready';
+  });
+
+  // organizer settings
+  thumbScale.addEventListener('change', ()=>{ state.thumbScale = Number(thumbScale.value||0.25); saveState(); dumpSettings(); });
+  thumbLimit.addEventListener('change', ()=>{ state.thumbLimit = Number(thumbLimit.value||30); saveState(); dumpSettings(); });
+  btnBuildGroups.addEventListener('click', buildGroupList);
+
+  // clear storage
+  btnClearStorage.addEventListener('click', ()=>{
+    localStorage.removeItem(STORE_KEY);
+    state = structuredClone(DEFAULTS);
+    saveState();
+    applyStateToUI();
+    buildGroupList();
+    renderFiles();
+    updateStats();
+    twRefreshFileOptions();
+  });
+
+  // ===== Output core =====
+  function shouldCompressFile(file){
+    if (file && file.hasTypewriterEdits) return false;
+    if (!state.smart) return false;
+    if (!state.compress) return false;
+    return file.classification === 'SCAN';
+  }
+  function dpiToScale(d){ return Math.max(0.1, d/72); }
+
+  async function renderScanPageToPdf(outPdf, file, pageIndex){
+    const pdf = await getPdfJsDoc(file);
+    const page = await pdf.getPage(pageIndex+1);
+    const scale = dpiToScale(state.dpi);
+    const vp1 = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const dataUrl = canvas.toDataURL('image/jpeg', state.quality);
+    const jpg = await outPdf.embedJpg(dataUrl);
+    const newPage = outPdf.addPage([vp1.width, vp1.height]);
+    newPage.drawImage(jpg, {x:0,y:0,width:vp1.width,height:vp1.height});
+  }
+
+  async function appendFilePreserveText(outPdf, file){
+    const { PDFDocument } = PDFLib;
+    const src = await PDFDocument.load(file.buf);
+    const pages = await outPdf.copyPages(src, src.getPageIndices());
+    pages.forEach(p=> outPdf.addPage(p));
+  }
+
+  async function appendFileCompressScan(outPdf, file){
+    const { PDFDocument } = PDFLib;
+    const src = await PDFDocument.load(file.buf);
+    const n = src.getPageCount();
+    for (let i=0;i<n;i++) await renderScanPageToPdf(outPdf, file, i);
+  }
+
+  async function buildOutputForGroup(groupKey, groupFiles){
+    const { PDFDocument } = PDFLib;
+    const out = await PDFDocument.create();
+    const plan = state.pagePlans[groupKey];
+
+    if (plan && plan.length){
+      for (const entry of plan){
+        const file = files.find(x=>x.id===entry.fileId);
+        if (!file) continue;
+
+        if (shouldCompressFile(file)){
+          await renderScanPageToPdf(out, file, entry.pageIndex);
+        } else {
+          const src = await PDFDocument.load(file.buf);
+          const [copied] = await out.copyPages(src, [entry.pageIndex]);
+          out.addPage(copied);
+        }
+      }
+      return out;
+    }
+
+    const sorted = [...groupFiles].sort((a,b)=> typeRank(a.type, groupKey) - typeRank(b.type, groupKey));
+    for (const f of sorted){
+      if (shouldCompressFile(f)) await appendFileCompressScan(out, f);
+      else await appendFilePreserveText(out, f);
+    }
+    return out;
+  }
+
+  function downloadBytes(bytes, filename){
+    const blob = new Blob([bytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function deliverOutputs(outputs){
+    if (!outputs.length) return;
+    if (outputs.length === 1){
+      downloadBytes(outputs[0].bytes, outputs[0].name);
+      return;
+    }
+    if (state.zipOut){
+      const zip = new JSZip();
+      outputs.forEach(o=> zip.file(o.name, o.bytes));
+      const zipBlob = await zip.generateAsync({type:'blob', compression:'STORE'});
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `PDF_outputs_${outputs.length}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } else {
+      outputs.forEach(o=> downloadBytes(o.bytes, o.name));
+    }
+  }
+
+  async function runAll(){
+    if (!window.PDFLib) return;
+    badgeStatus.textContent = 'Processing…';
+    btnRun.disabled = true;
+
+    try{
+      const mode = state.outMode;
+      const groups = getGroups();
+
+      if (mode === 'all'){
+        const { PDFDocument } = PDFLib;
+        const out = await PDFDocument.create();
+        const sorted = [...files].sort((a,b)=> typeRank(a.type, 'ALL') - typeRank(b.type,'ALL'));
+        for (const f of sorted){
+          if (shouldCompressFile(f)) await appendFileCompressScan(out, f);
+          else await appendFilePreserveText(out, f);
+        }
+        const bytes = await out.save();
+        downloadBytes(bytes, 'merged.pdf');
+        badgeStatus.textContent = 'Done';
+        return;
+      }
+
+      if (mode === 'single'){
+        const outputs = [];
+        for (const f of files){
+          const { PDFDocument } = PDFLib;
+          const out = await PDFDocument.create();
+          if (shouldCompressFile(f)) await appendFileCompressScan(out, f);
+          else await appendFilePreserveText(out, f);
+          const bytes = await out.save();
+          outputs.push({name: sanitizeFileName(baseName(f.name)) + '.pdf', bytes});
+        }
+        await deliverOutputs(outputs);
+        badgeStatus.textContent = 'Done';
+        return;
+      }
+
+      // group
+      const outputs = [];
+      for (const [g, arr] of groups.entries()){
+        const outPdf = await buildOutputForGroup(g, arr);
+        const bytes = await outPdf.save();
+        outputs.push({name: sanitizeFileName(g) + '.pdf', bytes});
+      }
+      await deliverOutputs(outputs);
+      badgeStatus.textContent = 'Done';
+    }catch(err){
+      console.error(err);
+      libError.style.display='block';
+      libError.textContent='處理失敗：可能 PDF 受保護/損毀，或瀏覽器資源不足。\n' + String(err);
+      badgeStatus.textContent = 'Error';
+    }finally{
+      btnRun.disabled = (state.outMode==='all') ? (files.length<2) : (files.length<1);
+      setTimeout(()=> badgeStatus.textContent = files.length ? 'Ready' : 'Idle', 800);
+    }
+  }
+  btnRun.addEventListener('click', runAll);
+
+  // ===== Typewriter Pro (unchanged behavior) =====
+  const TW_STORE = new Map(); // `${fileId}:${page}` -> [box...]
+  let twSelId = null;
+  const tw = { fileId: null, page: 1, zoom: 1.2, lastRender: null };
+  const HANDLE = 8;
+  const PAD_PT = 4;
+  let twDrag = null;
+
+  function twSetLog(msg){ twLog.textContent = msg || ''; }
+  function twKey(fileId,page){ return `${fileId}:${page}`; }
+  function twList(){
+    if (!tw.fileId) return [];
+    const k = twKey(tw.fileId, tw.page);
+    if (!TW_STORE.has(k)) TW_STORE.set(k, []);
+    return TW_STORE.get(k);
+  }
+  function twGetSelected(){ return twList().find(b=>b.id===twSelId) || null; }
+
+  function twCanvasToPdf(xPx,yPx){
+    const lr = tw.lastRender;
+    if (!lr) return {x:0,y:0};
+    const x = (xPx / lr.canvasW) * lr.pageWidthPt;
+    const y = ((lr.canvasH - yPx) / lr.canvasH) * lr.pageHeightPt;
+    return {x,y};
+  }
+  function twPdfToCanvas(xPt,yPt){
+    const lr = tw.lastRender;
+    if (!lr) return {x:0,y:0};
+    const x = (xPt / lr.pageWidthPt) * lr.canvasW;
+    const y = lr.canvasH - (yPt / lr.pageHeightPt) * lr.canvasH;
+    return {x,y};
+  }
+  function twBoxPdfToCanvasRect(box){
+    const topY = box.y + box.h;
+    const p1 = twPdfToCanvas(box.x, topY);
+    const p2 = twPdfToCanvas(box.x + box.w, box.y);
+    return { x:p1.x, y:p1.y, w:(p2.x - p1.x), h:(p2.y - p1.y) };
+  }
+
+  function twHitTest(xPx,yPx){
+    const list = twList();
+    for (let i=list.length-1;i>=0;i--){
+      const b = list[i];
+      const r = twBoxPdfToCanvasRect(b);
+      const inside = (xPx>=r.x && xPx<=r.x+r.w && yPx>=r.y && yPx<=r.y+r.h);
+      if (!inside) continue;
+
+      const handles = {
+        tl: {x:r.x, y:r.y},
+        tr: {x:r.x+r.w, y:r.y},
+        bl: {x:r.x, y:r.y+r.h},
+        br: {x:r.x+r.w, y:r.y+r.h},
+      };
+      for (const [k,p] of Object.entries(handles)){
+        if (Math.abs(xPx-p.x)<=HANDLE && Math.abs(yPx-p.y)<=HANDLE){
+          return {hit:true, box:b, idx:i, mode:'resize', handle:k};
+        }
+      }
+      return {hit:true, box:b, idx:i, mode:'move', handle:null};
+    }
+    return {hit:false};
+  }
+
+  function twSelect(id){
+    twSelId = id;
+    const box = twGetSelected();
+    if (box){
+      twText.value = box.text || '';
+      twFont.value = box.font || 'COURIER';
+      twSize.value = String(box.size || 12);
+      twLine.value = String(box.line || 1.2);
+      twColor.value = box.color || '#111111';
+    }
+    twRender();
+    twRenderList();
+  }
+
+  function twRenderList(){
+    const list = twList();
+    twBoxList.innerHTML = '';
+    for (const b of list){
+      const row = document.createElement('div');
+      row.className = 'twListRow' + (b.id===twSelId ? ' active' : '');
+      row.innerHTML = `
+        <div class="cap" title="${(b.text||'').replace(/"/g,'&quot;')}">${(b.text||'').split('\n')[0] || '(空白)'}</div>
+        <button class="miniBtn" data-up="${b.id}" title="上移"><i data-lucide="chevron-up" class="icon"></i></button>
+        <button class="miniBtn" data-down="${b.id}" title="下移"><i data-lucide="chevron-down" class="icon"></i></button>
+        <button class="miniBtn danger" data-delbox="${b.id}" title="刪"><i data-lucide="trash-2" class="icon"></i></button>
+      `;
+      row.addEventListener('click', (e)=>{
+        if (e.target.closest('button')) return;
+        twSelect(b.id);
+      });
+      twBoxList.appendChild(row);
+    }
+
+    twBoxList.querySelectorAll('[data-delbox]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.delbox;
+        const arr = twList();
+        const idx = arr.findIndex(x=>x.id===id);
+        if (idx>=0) arr.splice(idx,1);
+        if (twSelId===id) twSelId = null;
+        twRender(); twRenderList();
+      });
+    });
+
+    twBoxList.querySelectorAll('[data-up]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.up;
+        const arr = twList();
+        const idx = arr.findIndex(x=>x.id===id);
+        if (idx>0){
+          const t = arr[idx];
+          arr.splice(idx,1); arr.splice(idx-1,0,t);
+          twRender(); twRenderList();
+        }
+      });
+    });
+
+    twBoxList.querySelectorAll('[data-down]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.down;
+        const arr = twList();
+        const idx = arr.findIndex(x=>x.id===id);
+        if (idx>=0 && idx < arr.length-1){
+          const t = arr[idx];
+          arr.splice(idx,1); arr.splice(idx+1,0,t);
+          twRender(); twRenderList();
+        }
+      });
+    });
+
+    try { lucide.createIcons(); } catch {}
+  }
+
+  function twCreateBoxAtCenter(){
+    if (!tw.lastRender) return;
+    const lr = tw.lastRender;
+    const w = 220, h = 60;
+    const x = (lr.pageWidthPt - w)/2;
+    const y = (lr.pageHeightPt - h)/2;
+
+    const b = {
+      id: uid(),
+      x, y, w, h,
+      text: 'TYPE HERE',
+      font: twFont.value || 'COURIER',
+      size: Number(twSize.value||12),
+      line: Number(twLine.value||1.2),
+      color: twColor.value || '#111111',
+    };
+    twList().push(b);
+    twSelect(b.id);
+    twSetLog('已新增文字框（可拖拉/Resize）。');
+  }
+
+  function twDeleteSelected(){
+    if (!twSelId) return;
+    const arr = twList();
+    const idx = arr.findIndex(x=>x.id===twSelId);
+    if (idx>=0) arr.splice(idx,1);
+    twSelId = null;
+    twRender(); twRenderList();
+  }
+
+  async function twRefreshFileOptions(){
+    const prev = twFile.value;
+    twFile.innerHTML = '';
+    for (const f of files){
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = f.name;
+      twFile.appendChild(opt);
+    }
+    if (files.length){
+      twFile.value = files.some(x=>x.id===prev) ? prev : files[0].id;
+      tw.fileId = twFile.value;
+    } else {
+      tw.fileId = null;
+    }
+    twSelId = null;
+    await twRender();
+    twRenderList();
+  }
+
+  function twWrapLinesCanvas(ctx, text, maxWidth){
+    const rawLines = String(text||'').split('\n');
+    const out = [];
+    for (const line of rawLines){
+      const words = line.split(' ');
+      let cur = '';
+      for (const w of words){
+        const test = cur ? (cur + ' ' + w) : w;
+        if (ctx.measureText(test).width <= maxWidth){
+          cur = test;
+        } else {
+          if (cur) out.push(cur);
+          if (ctx.measureText(w).width > maxWidth){
+            let part = '';
+            for (const ch of w){
+              const t = part + ch;
+              if (ctx.measureText(t).width <= maxWidth) part = t;
+              else { if (part) out.push(part); part = ch; }
+            }
+            cur = part;
+          } else {
+            cur = w;
+          }
+        }
+      }
+      out.push(cur);
+    }
+    return out;
+  }
+
+  function twDrawBoxes(ctx){
+    const list = twList();
+    for (const box of list){
+      const r = twBoxPdfToCanvasRect(box);
+      ctx.save();
+
+      ctx.strokeStyle = (box.id===twSelId) ? 'rgba(124,58,237,.95)' : 'rgba(0,0,0,.25)';
+      ctx.lineWidth = (box.id===twSelId) ? 2 : 1;
+      ctx.setLineDash(box.id===twSelId ? [] : [3,3]);
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.setLineDash([]);
+
+      if (box.id===twSelId){
+        ctx.fillStyle = 'rgba(124,58,237,.95)';
+        const hs = [
+          [r.x, r.y],
+          [r.x+r.w, r.y],
+          [r.x, r.y+r.h],
+          [r.x+r.w, r.y+r.h],
+        ];
+        for (const [hx,hy] of hs){
+          ctx.fillRect(hx-HANDLE, hy-HANDLE, HANDLE*2, HANDLE*2);
+        }
+      }
+
+      const fontFamily =
+        box.font==='COURIER' ? 'Courier New, Courier, monospace' :
+        box.font==='TIMES' ? 'Times New Roman, Times, serif' :
+        'Arial, Helvetica, sans-serif';
+
+      const sizePx = (box.size || 12) * (tw.lastRender.canvasW / tw.lastRender.pageWidthPt);
+      ctx.fillStyle = box.color || '#111111';
+      ctx.font = `${sizePx}px ${fontFamily}`;
+      ctx.textBaseline = 'top';
+
+      const innerW = Math.max(10, r.w - 16);
+      const lines = twWrapLinesCanvas(ctx, box.text||'', innerW);
+      const linePx = sizePx * (box.line || 1.2);
+      let y = r.y + 6;
+      for (const ln of lines){
+        if (y + linePx > r.y + r.h - 4) break;
+        ctx.fillText(ln, r.x + 8, y);
+        y += linePx;
+      }
+
+      ctx.restore();
+    }
+  }
+
+  async function twRender(){
+    const file = files.find(x=>x.id===tw.fileId);
+    tw.page = Math.max(1, Number(twPage.value||1));
+    tw.zoom = Math.max(0.25, Math.min(3, Number(twZoom.value||1.2)));
+
+    if (!file || !window.pdfjsLib){
+      const ctx = twCanvas.getContext('2d');
+      twCanvas.width = 800; twCanvas.height = 400;
+      ctx.clearRect(0,0,twCanvas.width,twCanvas.height);
+      ctx.fillStyle = '#222';
+      ctx.font = '16px Arial';
+      ctx.fillText('尚未選擇 PDF，或 PDF.js 未載入', 20, 40);
+      twBadge.textContent = 'Idle';
+      twHint.textContent = '請先在「檔案」加入 PDF，再到此選擇檔案。';
+      return;
+    }
+
+    twBadge.textContent = 'Rendering…';
+    twHint.textContent = '點：建立/選取；拖框移動；拖四角 Resize；Delete 可刪（焦點不在輸入框時）。';
+
+    try{
+      const pdf = await getPdfJsDoc(file);
+      const total = pdf.numPages || 1;
+      twPage.max = String(total);
+      tw.page = Math.min(tw.page, total);
+      twPage.value = String(tw.page);
+
+      const page = await pdf.getPage(tw.page);
+      const viewport = page.getViewport({ scale: tw.zoom });
+
+      const ctx = twCanvas.getContext('2d');
+      twCanvas.width = Math.floor(viewport.width);
+      twCanvas.height = Math.floor(viewport.height);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,twCanvas.width,twCanvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // pdf-lib page size for mapping (points)
+      const tmp = await PDFLib.PDFDocument.load(file.buf);
+      const pdfPage = tmp.getPages()[tw.page-1];
+      const { width: pageWidthPt, height: pageHeightPt } = pdfPage.getSize();
+      tw.lastRender = { pageWidthPt, pageHeightPt, canvasW: twCanvas.width, canvasH: twCanvas.height };
+
+      twDrawBoxes(ctx);
+      twBadge.textContent = 'Ready';
+      twRenderList();
+    }catch(err){
+      console.error(err);
+      twBadge.textContent = 'Error';
+      twSetLog('渲染失敗：' + String(err));
+    }
+  }
+
+  // Canvas interaction
+  twCanvas.addEventListener('mousedown', (e)=>{
+    if (!tw.lastRender) return;
+    const rect = twCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const hit = twHitTest(x,y);
+    if (hit.hit){
+      twSelId = hit.box.id;
+      twSelect(twSelId);
+      twDrag = {
+        mode: hit.mode,
+        handle: hit.handle,
+        startX: x, startY: y,
+        orig: {...hit.box}
+      };
+      twCanvas.style.cursor = (hit.mode==='move') ? 'move' : 'nwse-resize';
+      return;
+    }
+
+    // create new box at click
+    const pt = twCanvasToPdf(x, y);
+    const w = 220, h = 60;
+    const lr = tw.lastRender;
+
+    const b = {
+      id: uid(),
+      x: Math.max(0, Math.min(lr.pageWidthPt - w, pt.x)),
+      y: Math.max(0, Math.min(lr.pageHeightPt - h, pt.y - h)),
+      w, h,
+      text: 'TYPE HERE',
+      font: twFont.value || 'COURIER',
+      size: Number(twSize.value||12),
+      line: Number(twLine.value||1.2),
+      color: twColor.value || '#111111',
+    };
+    twList().push(b);
+    twSelId = b.id;
+    twSelect(b.id);
+    twSetLog('已建立新文字框（可拖拉/Resize）。');
+  });
+
+  window.addEventListener('mousemove', (e)=>{
+    if (!twDrag || !tw.lastRender) return;
+    const rect = twCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const dx = x - twDrag.startX;
+    const dy = y - twDrag.startY;
+
+    const b = twGetSelected();
+    if (!b) return;
+
+    const lr = tw.lastRender;
+    const dxPt = (dx / lr.canvasW) * lr.pageWidthPt;
+    const dyPt = -(dy / lr.canvasH) * lr.pageHeightPt;
+
+    if (twDrag.mode === 'move'){
+      b.x = twDrag.orig.x + dxPt;
+      b.y = twDrag.orig.y + dyPt;
+      b.x = Math.max(0, Math.min(lr.pageWidthPt - b.w, b.x));
+      b.y = Math.max(0, Math.min(lr.pageHeightPt - b.h, b.y));
+    } else {
+      const x0 = twDrag.orig.x, y0 = twDrag.orig.y, w0 = twDrag.orig.w, h0 = twDrag.orig.h;
+      const minW = 30, minH = 20;
+
+      if (twDrag.handle === 'br'){
+        b.w = Math.max(minW, w0 + dxPt);
+        b.h = Math.max(minH, h0 + dyPt);
+      } else if (twDrag.handle === 'bl'){
+        b.x = x0 + dxPt;
+        b.w = Math.max(minW, w0 - dxPt);
+        b.h = Math.max(minH, h0 + dyPt);
+      } else if (twDrag.handle === 'tr'){
+        b.w = Math.max(minW, w0 + dxPt);
+        b.y = y0 + dyPt;
+        b.h = Math.max(minH, h0 - dyPt);
+      } else if (twDrag.handle === 'tl'){
+        b.x = x0 + dxPt;
+        b.w = Math.max(minW, w0 - dxPt);
+        b.y = y0 + dyPt;
+        b.h = Math.max(minH, h0 - dyPt);
+      }
+
+      b.x = Math.max(0, Math.min(lr.pageWidthPt - b.w, b.x));
+      b.y = Math.max(0, Math.min(lr.pageHeightPt - b.h, b.y));
+    }
+
+    twRender();
+  });
+
+  window.addEventListener('mouseup', ()=>{
+    if (!twDrag) return;
+    twDrag = null;
+    twCanvas.style.cursor = 'crosshair';
+    twRender();
+  });
+
+  // Delete key (when on typewriter view)
+  document.addEventListener('keydown', (e)=>{
+    const twView = document.getElementById('view-typewriter');
+    if (!twView || twView.style.display === 'none') return;
+    if (e.key === 'Delete' || e.key === 'Backspace'){
+      if (document.activeElement === twText) return;
+      twDeleteSelected();
+    }
+  });
+
+  // UI -> selected box
+  function twApplyUIToSelected(){
+    const b = twGetSelected();
+    if (!b) return;
+    b.text = twText.value || '';
+    b.font = twFont.value || 'COURIER';
+    b.size = Number(twSize.value||12);
+    b.line = Number(twLine.value||1.2);
+    b.color = twColor.value || '#111111';
+    twRender();
+    twRenderList();
+  }
+
+  twText.addEventListener('input', twApplyUIToSelected);
+  twFont.addEventListener('change', twApplyUIToSelected);
+  twSize.addEventListener('change', twApplyUIToSelected);
+  twLine.addEventListener('change', twApplyUIToSelected);
+  twColor.addEventListener('input', twApplyUIToSelected);
+
+  twNewBox.addEventListener('click', ()=> twCreateBoxAtCenter());
+  twDeleteSel.addEventListener('click', ()=> twDeleteSelected());
+  twClearPage.addEventListener('click', ()=>{
+    if (!tw.fileId) return;
+    TW_STORE.set(twKey(tw.fileId, tw.page), []);
+    twSelId = null;
+    twRender();
+    twRenderList();
+  });
+
+  async function twApplyToPdf(){
+    const file = files.find(x=>x.id===tw.fileId);
+    if (!file) return;
+
+    const all = [];
+    for (const [k, arr] of TW_STORE.entries()){
+      const [fid, pageStr] = k.split(':');
+      if (fid !== tw.fileId) continue;
+      const p = Number(pageStr);
+      for (const b of (arr||[])) all.push({page:p, ...b});
+    }
+    if (!all.length){
+      twSetLog('沒有任何文字框可套用。');
+      return;
+    }
+
+    twBadge.textContent = 'Applying…';
+    twSetLog('套用中…');
+
+    try{
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.load(file.buf);
+      const pages = pdfDoc.getPages();
+      const fontCache = new Map();
+
+      async function getFont(fontMode){
+        if (fontCache.has(fontMode)) return fontCache.get(fontMode);
+        const key =
+          (fontMode==='COURIER') ? StandardFonts.Courier :
+          (fontMode==='TIMES') ? StandardFonts.TimesRoman :
+          StandardFonts.Helvetica;
+        const f = await pdfDoc.embedFont(key);
+        fontCache.set(fontMode, f);
+        return f;
+      }
+
+      for (const b of all){
+        const page = pages[b.page - 1];
+        if (!page) continue;
+        const fontObj = await getFont(b.font || 'COURIER');
+
+        const hex = String(b.color||'#111111').replace('#','');
+        const n = parseInt(hex,16);
+        const rr = ((n>>16)&255)/255;
+        const gg = ((n>>8)&255)/255;
+        const bb = (n&255)/255;
+
+        const x = b.x + PAD_PT;
+        const yTop = b.y + b.h - PAD_PT;
+        const fontSize = b.size || 12;
+        const lineHeight = fontSize * (b.line || 1.2);
+        const maxWidth = Math.max(10, b.w - PAD_PT*2);
+
+        page.drawText(String(b.text||''), {
+          x,
+          y: yTop - fontSize,
+          size: fontSize,
+          font: fontObj,
+          color: rgb(rr,gg,bb),
+          maxWidth,
+          lineHeight,
+          wordBreaks: [' '],
+        });
+      }
+
+      const newBytes = await pdfDoc.save();
+      file.buf = newBytes.buffer ? newBytes.buffer : newBytes;
+      file.size = (newBytes.byteLength != null) ? newBytes.byteLength : file.size;
+      file.hasTypewriterEdits = true;
+      file.classification = 'TEXT';
+
+      twBadge.textContent = 'Done';
+      twSetLog('✅ 已套用並更新此 PDF（已回存到清單，後續輸出會包含文字）。');
+
+      renderFiles();
+      buildGroupList();
+      updateStats();
+      await twRender();
+    }catch(err){
+      console.error(err);
+      twBadge.textContent = 'Error';
+      twSetLog('套用失敗：' + String(err));
+    }finally{
+      setTimeout(()=> twBadge.textContent = 'Ready', 700);
+    }
+  }
+
+  function twDownloadCurrent(){
+    const file = files.find(x=>x.id===tw.fileId);
+    if (!file) return;
+    downloadBytes(file.buf, sanitizeFileName(baseName(file.name)) + '_typed.pdf');
+  }
+
+  twApply.addEventListener('click', twApplyToPdf);
+  twDownload.addEventListener('click', twDownloadCurrent);
+
+  // page controls
+  twFile.addEventListener('change', async ()=>{
+    tw.fileId = twFile.value;
+    twSelId = null;
+    twSetLog('');
+    await twRender();
+    twRenderList();
+  });
+  twPrev.addEventListener('click', async ()=>{
+    twPage.value = String(Math.max(1, Number(twPage.value||1) - 1));
+    twSelId = null;
+    await twRender();
+    twRenderList();
+  });
+  twNext.addEventListener('click', async ()=>{
+    twPage.value = String(Number(twPage.value||1) + 1);
+    twSelId = null;
+    await twRender();
+    twRenderList();
+  });
+  twRerender.addEventListener('click', ()=> twRender());
+  twPage.addEventListener('change', ()=> { twSelId=null; twRender(); twRenderList(); });
+  twZoom.addEventListener('change', ()=> twRender());
+
+  // ===== Init =====
+  loadState();
+  applyStateToUI();
+  updateStats();
+  renderFiles();
+  buildGroupList();
+  twRefreshFileOptions();
+})();
+</script>
+</body>
+</html>
