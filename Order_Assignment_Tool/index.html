@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <title>提单号分批制单工具（TAR 最终版）</title>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- JSZip（用作打包容器，輸出為 .tar 副檔名） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    body {
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 24px;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+      color: #444;
+    }
+    textarea, select, input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 180px;
+      resize: vertical;
+    }
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+    .btn-primary {
+      background: #0078ff;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #005fcc;
+    }
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background: #c8c8c8;
+    }
+    #msg {
+      margin-top: 20px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+    #makerManager {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 350px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 1000;
+    }
+    #makerManagerList li {
+      margin: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h2>提单号分批制单工具（每 50 个一档，最多 1000 个）</h2>
+  <small>纯本地运行，无数据上传。</small>
+
+  <label>提单号列表（每行一个）：</label>
+  <textarea id="awbInput"></textarea>
+
+  <label>制单人角色：</label>
+  <select id="role">
+    <option value="">（请选择）</option>
+    <option value="自有员工">自有员工</option>
+    <option value="A3服务商">A3服务商</option>
+    <option value="B段服务商">B段服务商</option>
+  </select>
+
+  <label>制单人（可选）：</label>
+  <input list="makerList" id="maker" />
+  <datalist id="makerList"></datalist>
+  <button class="btn-secondary" id="manageMakersBtn">管理常用名字</button>
+
+  <br>
+
+  <button class="btn-primary" id="downloadBtn">逐檔下載 Excel</button>
+  <button class="btn-primary" id="tarBtn">打包 TAR（大量檔案用）</button>
+
+  <p id="msg"></p>
+</div>
+
+<div id="overlay"></div>
+<div id="makerManager">
+  <h4>常用制单人管理（按当前角色）</h4>
+  <ul id="makerManagerList"></ul>
+  <button class="btn-secondary" id="closeManagerBtn">关闭</button>
+</div>
+
+<script>
+const batchSize = 50;
+const maxAwb = 1000;
+
+/* ---------- 常用名字（按角色分類） ---------- */
+function getRoleKey() {
+  const role = document.getElementById('role').value || '未选择角色';
+  return 'maker_history_' + role;
+}
+
+function loadMakerHistory() {
+  const key = getRoleKey();
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  const datalist = document.getElementById('makerList');
+  datalist.innerHTML = '';
+  list.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    datalist.appendChild(option);
+  });
+}
+
+function saveMakerHistory(name) {
+  if (!name) return;
+  const key = getRoleKey();
+  let list = JSON.parse(localStorage.getItem(key) || '[]');
+  list = list.filter(x => x !== name);
+  list.unshift(name);
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function openMakerManager() {
+  const key = getRoleKey();
+  const list = JSON.parse(localStorage.getItem(key) || '[]');
+  const ul = document.getElementById('makerManagerList');
+  ul.innerHTML = '';
+
+  if (list.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = '当前角色暂无常用名字。';
+    ul.appendChild(li);
+  } else {
+    list.forEach(name => {
+      const li = document.createElement('li');
+      li.textContent = name;
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '删除';
+      delBtn.className = 'btn-secondary';
+      delBtn.style.padding = '4px 8px';
+      delBtn.style.fontSize = '12px';
+      delBtn.onclick = () => deleteMaker(name);
+      li.appendChild(delBtn);
+      ul.appendChild(li);
+    });
+  }
+
+  document.getElementById('overlay').style.display = 'block';
+  document.getElementById('makerManager').style.display = 'block';
+}
+
+function deleteMaker(name) {
+  const key = getRoleKey();
+  let list = JSON.parse(localStorage.getItem(key) || '[]');
+  list = list.filter(x => x !== name);
+  localStorage.setItem(key, JSON.stringify(list));
+  openMakerManager();
+  loadMakerHistory();
+}
+
+window.addEventListener('load', loadMakerHistory);
+document.getElementById('role').addEventListener('change', loadMakerHistory);
+document.getElementById('manageMakersBtn').onclick = openMakerManager;
+document.getElementById('closeManagerBtn').onclick = () => {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('makerManager').style.display = 'none';
+};
+document.getElementById('overlay').onclick = () => {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('makerManager').style.display = 'none';
+};
+
+/* ---------- 檔名生成：角色_制單人_日期_時間_總數pcs ---------- */
+function generateFileName(role, maker, awbCount) {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const monthNames = ["JAN","FEB","MAR","APR","MAY","JUN",
+                      "JUL","AUG","SEP","OCT","NOV","DEC"];
+  const month = monthNames[now.getMonth()];
+  const year = String(now.getFullYear()).slice(-2);
+  const hours = String(now.getHours()).padStart(2, '0');
+  const mins = String(now.getMinutes()).padStart(2, '0');
+  const dateStr = `${day}${month}${year}`;
+  const timeStr = `${hours}${mins}`;
+  const makerPart = maker ? `_${maker}` : "";
+  return `${role}${makerPart}_${dateStr}_${timeStr}_${awbCount}pcs`;
+}
+
+/* ---------- 讀取 + 驗證 AWB ---------- */
+function getAwbData() {
+  const msgEl = document.getElementById('msg');
+  msgEl.style.color = '#d00';
+  msgEl.textContent = '';
+
+  const raw = document.getElementById('awbInput').value.trim();
+  const role = document.getElementById('role').value;
+  const maker = document.getElementById('maker').value.trim();
+
+  if (!raw) return { error: '请先输入提单号。' };
+  if (!role) return { error: '请选择制单人角色。' };
+
+  let awbs = raw.split('\n').map(x => x.trim()).filter(x => x !== '');
+  if (awbs.length === 0) return { error: '没有有效的提单号。' };
+  if (awbs.length > maxAwb) return { error: '最多只处理 ' + maxAwb + ' 个提单号。' };
+
+  const awbPattern = /^\d{3}-\d{8}$/;
+  const invalidAwbs = awbs.filter(a => !awbPattern.test(a));
+  if (invalidAwbs.length > 0) {
+    return {
+      error: '以下提单号格式不正确（需为 3位数字-8位数字，例如 000-12345678）：\n' +
+             invalidAwbs.join('\n')
+    };
+  }
+
+  if ((role === '自有员工' || role === 'A3服务商') && !maker)
+    return { error: '当制单人角色为 自有员工 / A3服务商 时，制单人必填。' };
+
+  saveMakerHistory(maker);
+  return { awbs, role, maker };
+}
+
+/* ---------- 逐檔下載 Excel ---------- */
+document.getElementById('downloadBtn').onclick = function () {
+  const data = getAwbData();
+  const msgEl = document.getElementById('msg');
+  if (data.error) {
+    msgEl.style.color = '#d00';
+    msgEl.textContent = data.error;
+    return;
+  }
+
+  const { awbs, role, maker } = data;
+  const baseName = generateFileName(role, maker, awbs.length);
+
+  msgEl.style.color = '#000';
+  msgEl.textContent = '正在逐檔下載…';
+
+  let batchIndex = 1;
+  for (let i = 0; i < awbs.length; i += batchSize) {
+    const batch = awbs.slice(i, i + batchSize);
+    const sheetData = [['*提单号', '*制单人角色', '*制单人']];
+    batch.forEach(awb => {
+      sheetData.push([awb, role, role === 'B段服务商' ? '' : maker]);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    XLSX.writeFile(wb, `${baseName}_${batchIndex}.xlsx`);
+    batchIndex++;
+  }
+
+  msgEl.style.color = '#090';
+  msgEl.textContent = '已完成逐檔下載。';
+};
+
+/* ---------- TAR 打包（以 .tar 副檔名下載） ---------- */
+document.getElementById('tarBtn').onclick = function () {
+  const data = getAwbData();
+  const msgEl = document.getElementById('msg');
+  if (data.error) {
+    msgEl.style.color = '#d00';
+    msgEl.textContent = data.error;
+    return;
+  }
+
+  const { awbs, role, maker } = data;
+  const baseName = generateFileName(role, maker, awbs.length);
+
+  msgEl.style.color = '#000';
+  msgEl.textContent = '正在生成 TAR，请稍候…';
+
+  const tar = new JSZip();
+  tar.file('readme.txt', '此檔案為本地工具打包的 Excel 集合，僅包含數據檔案。');
+
+  let batchIndex = 1;
+  for (let i = 0; i < awbs.length; i += batchSize) {
+    const batch = awbs.slice(i, i + batchSize);
+    const sheetData = [['*提单号', '*制单人角色', '*制单人']];
+    batch.forEach(awb => {
+      sheetData.push([awb, role, role === 'B段服务商' ? '' : maker]);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const excelData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    tar.file(`${baseName}_${batchIndex}.xlsx`, excelData);
+    batchIndex++;
+  }
+
+  tar.generateAsync({ type: 'blob' }).then(blob => {
+    const tarBlob = new Blob([blob], { type: 'application/x-tar' });
+    const url = URL.createObjectURL(tarBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'AWB_batches.tar';
+    a.click();
+    URL.revokeObjectURL(url);
+    msgEl.style.color = '#090';
+    msgEl.textContent = 'TAR 已生成。';
+  });
+};
+</script>
+
+</body>
+</html>
