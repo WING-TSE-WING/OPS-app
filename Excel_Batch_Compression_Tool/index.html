@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>Excel 批量壓縮工具 Pro (動態勾選與智慧命名版)</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+:root {
+    --primary: #1a73e8;
+    --primary-hover: #1557b0;
+    --success: #28a745;
+    --warning: #f39c12;
+    --danger: #d93025;
+    --bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --text: #333333;
+    --border: #dadce0;
+}
+
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+    padding: 40px 20px; 
+    background-color: var(--bg); 
+    color: var(--text);
+    margin: 0;
+}
+
+.card { 
+    background: var(--card-bg); 
+    padding: 35px; 
+    border-radius: 16px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
+    max-width: 950px; 
+    margin: 0 auto; 
+}
+
+h2 { 
+    color: var(--primary); 
+    margin-top: 0; 
+    border-bottom: 2px solid #e8f0fe; 
+    padding-bottom: 12px; 
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.file-dropzone {
+    border: 2px dashed var(--primary);
+    background: #f1f7fe;
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 20px;
+}
+.file-dropzone:hover { background: #e4f0fe; border-color: var(--primary-hover); }
+.file-dropzone p { margin: 0; font-size: 16px; color: #5f6368; font-weight: 500; }
+.file-dropzone input[type="file"] { display: none; }
+
+button { 
+    padding: 12px 28px; 
+    margin-top: 5px; 
+    border: none; 
+    border-radius: 8px; 
+    font-size: 15px;
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-right: 10px;
+}
+.btn-container { margin-top: 20px; margin-bottom: 20px; }
+.btn-analyze { background: var(--warning); color: white; }
+.btn-analyze:hover { background: #e67e22; }
+.btn-download { background: var(--primary); color: white; }
+.btn-download:hover { background: var(--primary-hover); }
+button:disabled { background: #e0e0e0 !important; color: #a1a1a1 !important; cursor: not-allowed; box-shadow: none !important; }
+
+.config-section { background: #f8f9fa; border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin: 20px 0; }
+.config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+.config-item { display: flex; flex-direction: column; justify-content: center; }
+.config-item label { font-weight: 600; font-size: 13px; color: #5f6368; margin-bottom: 6px; }
+.config-item input[type="text"], .config-item input[type="number"] { padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; }
+.config-item input:focus { border-color: var(--primary); }
+
+/* 💡 開關樣式 */
+.switch-container { display: flex; align-items: center; margin-top: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.switch-container input { margin-right: 8px; width: 16px; height: 16px; cursor: pointer; }
+
+.radio-group { 
+    margin: 10px 0 20px 0; font-size: 15px; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid var(--border); display: inline-block;
+}
+.radio-group label { margin-right: 25px; cursor: pointer; font-weight: 500; }
+
+table { border-collapse: collapse; margin-top: 25px; width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+th, td { padding: 14px; text-align: center; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { background-color: #f1f3f4; font-weight: 600; color: #3c4043; }
+tr:hover { background-color: #f8f9fa; }
+.chk-col { width: 40px; }
+.chk-file { width: 18px; height: 18px; cursor: pointer; }
+
+.progress { width: 100%; background: #e8eaed; margin-top: 20px; border-radius: 10px; overflow: hidden; }
+.progress-bar {
+    height: 24px; background: var(--success); width: 0%; color: white; text-align: center; font-size: 13px; line-height: 24px; font-weight: bold; transition: width 0.1s ease;
+}
+
+.status-box { margin-top: 15px; padding: 12px; background: #e8f0fe; border-radius: 8px; color: #1967d2; font-weight: 500; font-size: 14px; }
+#summary { color: var(--success); margin-top: 20px; font-size: 18px; }
+</style>
+</head>
+
+<body>
+<div class="card">
+    <h2>🚀 Excel 批量壓縮工具 Pro（勾選篩選與智慧命名版）</h2>
+
+    <div class="file-dropzone" onclick="document.getElementById('fileInput').click()">
+        <p id="dropzoneText">📂 點擊選取或將 Excel / 壓縮檔 (.zip) 拖曳至此處上傳</p>
+        <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.xlsb,.zip" onchange="handleFileSelect()"/>
+    </div>
+
+    <div class="radio-group">
+        <label><input type="radio" name="mode" value="excel" checked onchange="resetStatus()"> Excel 強壓縮 (.xlsx)</label>
+        <label><input type="radio" name="mode" value="csv" onchange="resetStatus()"> CSV 極限壓縮 (.csv)</label>
+    </div>
+
+    <div class="config-section">
+        <div class="config-grid">
+            <div class="config-item">
+                <label for="zipNameInput">✍️ 自訂 ZIP 壓縮包名稱</label>
+                <input type="text" id="zipNameInput" value="compressed_files" placeholder="例如：July_Report" oninput="saveZipNameLocalStorage()">
+                
+                <label class="switch-container">
+                    <input type="checkbox" id="useOriginalNameCheckbox" onchange="toggleNameInputMode()"> 智慧動態：直接套用選取之檔案名稱
+                </label>
+            </div>
+            <div class="config-item">
+                <label for="maxMbInput">📦 自動分卷容量上限 (MB)</label>
+                <input type="number" id="maxMbInput" value="5.0" min="0.1" step="0.1" oninput="recalculateSplits()">
+            </div>
+        </div>
+        <div class="status-box">
+            📊 <b>實體數據狀態：</b> <span id="estimationText" style="color: #e67e22;">等待點擊分析...</span>
+        </div>
+    </div>
+
+    <div class="btn-container">
+        <button id="analyzeBtn" class="btn-analyze" onclick="analyzeRealCompressedSize()">🔍 1. 開始深度大掃除與實體壓測分析</button>
+        <button id="submitBtn" class="btn-download" onclick="downloadAllZips()" disabled>🚀 2. 開始分卷打包下載</button>
+    </div>
+
+    <div class="progress">
+        <div class="progress-bar" id="progressBar">0% 等待動工</div>
+    </div>
+
+    <table>
+    <thead>
+    <tr>
+    <th class="chk-col"><input type="checkbox" id="selectAllCheckbox" checked onchange="toggleSelectAll(this)" style="width:18px; height:18px; cursor:pointer;"></th>
+    <th>來源/解析檔名</th>
+    <th>原始大小</th>
+    <th>大掃除後大小</th>
+    <th>單檔獨立 ZIP 實體體積</th>
+    <th>分卷精準預配歸屬</th>
+    </tr>
+    </thead>
+    <tbody id="result"></tbody>
+    </table>
+
+    <h3 id="summary"></h3>
+</div>
+
+<script>
+let finalProcessedItems = [];
+let autoDetectedName = ""; // 用於暫存偵測到的第一個原始檔案/壓縮包名稱
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+window.addEventListener('DOMContentLoaded', () => {
+    const savedName = localStorage.getItem('user_custom_zip_name');
+    if (savedName) document.getElementById('zipNameInput').value = savedName;
+    
+    const savedUseOrig = localStorage.getItem('user_use_original_name') === 'true';
+    document.getElementById('useOriginalNameCheckbox').checked = savedUseOrig;
+    toggleNameInputMode();
+});
+
+function saveZipNameLocalStorage() {
+    if (!document.getElementById('useOriginalNameCheckbox').checked) {
+        const name = document.getElementById('zipNameInput').value.trim();
+        localStorage.setItem('user_custom_zip_name', name);
+    }
+}
+
+function toggleNameInputMode() {
+    const useOrig = document.getElementById('useOriginalNameCheckbox').checked;
+    const nameInput = document.getElementById('zipNameInput');
+    localStorage.setItem('user_use_original_name', useOrig);
+    
+    if (useOrig) {
+        nameInput.disabled = true;
+        if (autoDetectedName) {
+            nameInput.value = autoDetectedName;
+        } else {
+            nameInput.value = "(跟隨上傳檔案名稱)";
+        }
+    } else {
+        nameInput.disabled = false;
+        const savedName = localStorage.getItem('user_custom_zip_name');
+        nameInput.value = savedName ? savedName : "compressed_files";
+    }
+}
+
+const dropzone = document.querySelector('.file-dropzone');
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.background = '#e4f0fe'; });
+dropzone.addEventListener('dragleave', () => { dropzone.style.background = '#f1f7fe'; });
+dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.style.background = '#f1f7fe';
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    handleFileSelect();
+});
+
+function handleFileSelect() {
+    const files = document.getElementById('fileInput').files;
+    if(files.length > 0) {
+        // 💡 自動抓取上傳的第一個檔案名字（去掉副檔名），供智慧命名功能使用
+        autoDetectedName = files[0].name.replace(/\.[^/.]+$/, "");
+        if (document.getElementById('useOriginalNameCheckbox').checked) {
+            document.getElementById('zipNameInput').value = autoDetectedName;
+        }
+        document.getElementById('dropzoneText').innerHTML = `✅ 已成功選取 <b>${files.length}</b> 個檔案/壓縮包，請點擊下方按鈕開始分析`;
+        resetStatus();
+    }
+}
+
+function formatMB(bytes) { return (bytes / 1024 / 1024).toFixed(3); }
+
+function updateProgress(percent, text) {
+    const bar = document.getElementById("progressBar");
+    bar.style.width = percent + "%";
+    bar.innerText = text ? `${percent}% (${text})` : `${percent}%`;
+}
+
+function resetStatus() {
+    finalProcessedItems = [];
+    document.getElementById('result').innerHTML = "";
+    document.getElementById('summary').innerText = "";
+    document.getElementById('estimationText').style.color = "#e67e22";
+    document.getElementById('estimationText').innerText = "請點擊「1. 開始深度大掃除與實體壓測分析」...";
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('selectAllCheckbox').checked = true;
+    updateProgress(0, "等待分析");
+}
+
+function toggleSelectAll(master) {
+    const checkboxes = document.querySelectorAll('.chk-file');
+    checkboxes.forEach(chk => {
+        chk.checked = master.checked;
+    });
+    recalculateSplits(); // 重新計算分配與統計
+}
+
+// 第一階段：多源解包與高壓模擬
+async function analyzeRealCompressedSize() {
+    const files = document.getElementById('fileInput').files;
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const estText = document.getElementById('estimationText');
+    
+    if (!files.length) {
+        alert("請先上傳檔案或 ZIP 壓縮檔！");
+        return;
+    }
+
+    analyzeBtn.disabled = true;
+    estText.innerText = "⏳ 正在啟動多源壓測分析引擎（展開檔案中...）";
+    finalProcessedItems = [];
+
+    let flatFilesQueue = [];
+    
+    for (let i = 0; i < files.length; i++) {
+        const currentFile = files[i];
+        if (currentFile.name.toLowerCase().endsWith('.zip')) {
+            updateProgress(5, `正在解析導入的外部 ZIP: ${currentFile.name}...`);
+            try {
+                const zipData = await currentFile.arrayBuffer();
+                const unzippedObj = await JSZip.loadAsync(zipData);
+                
+                for (const relativePath in unzippedObj.files) {
+                    const zipEntry = unzippedObj.files[relativePath];
+                    if (!zipEntry.dir && (relativePath.toLowerCase().endsWith('.xlsx') || relativePath.toLowerCase().endsWith('.xls') || relativePath.toLowerCase().endsWith('.xlsb'))) {
+                        const fileBuffer = await zipEntry.async("arraybuffer");
+                        flatFilesQueue.push({
+                            name: relativePath.split('/').pop(),
+                            size: fileBuffer.byteLength,
+                            buffer: fileBuffer
+                        });
+                    }
+                }
+            } catch (zipErr) { console.error("解開外部 ZIP 失敗:", zipErr); }
+        } else {
+            const fileBuffer = await currentFile.arrayBuffer();
+            flatFilesQueue.push({ name: currentFile.name, size: currentFile.size, buffer: fileBuffer });
+        }
+    }
+
+    if (flatFilesQueue.length === 0) {
+        alert("沒有發現任何可辨識的 Excel 數據文件！");
+        analyzeBtn.disabled = false;
+        return;
+    }
+
+    for (let i = 0; i < flatFilesQueue.length; i++) {
+        const itemFile = flatFilesQueue[i];
+        updateProgress(10 + Math.round(((i + 1) / flatFilesQueue.length) * 50), `壓測清洗中 (${i+1}/${flatFilesQueue.length})...`);
+        await sleep(15);
+
+        try {
+            const workbook = XLSX.read(itemFile.buffer, { cellStyles: false, cellFormulas: false, cellDates: true });
+            const originalBaseName = itemFile.name.replace(/\.[^/.]+$/, "");
+
+            if (mode === "excel") {
+                const newWB = XLSX.utils.book_new();
+                workbook.SheetNames.forEach(name => {
+                    const sheet = workbook.Sheets[name];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+                    const cleanJson = json.map(row => row.map(cell => (typeof cell === 'string' ? cell.trim() : cell)));
+                    while (cleanJson.length > 0 && cleanJson[cleanJson.length - 1].every(c => c === "")) { cleanJson.pop(); }
+                    if (!cleanJson.some(r => r.some(c => c !== ""))) return;
+                    const newSheet = XLSX.utils.aoa_to_sheet(cleanJson);
+                    XLSX.utils.book_append_sheet(newWB, newSheet, name);
+                });
+
+                let cleanBuffer = XLSX.write(newWB, { bookType: "xlsx", type: "array", compression: true });
+                let finalFileName = `${originalBaseName}.xlsx`;
+
+                const singleTesterZip = new JSZip();
+                singleTesterZip.file(finalFileName, cleanBuffer);
+                let testBlob = await singleTesterZip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+
+                finalProcessedItems.push({
+                    id: i,
+                    name: finalFileName,
+                    data: cleanBuffer,
+                    cleanSize: cleanBuffer.byteLength,
+                    originalSize: itemFile.size,
+                    realCompressedSize: testBlob.size
+                });
+                testBlob = null;
+
+            } else {
+                const hasMultipleSheets = workbook.SheetNames.length > 1;
+                for (const name of workbook.SheetNames) {
+                    const sheet = workbook.Sheets[name];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+                    const cleanJson = json.map(row => row.map(cell => (typeof cell === 'string' ? cell.trim() : cell)));
+                    while (cleanJson.length > 0 && cleanJson[cleanJson.length - 1].every(c => c === "")) { cleanJson.pop(); }
+                    if (!cleanJson.some(r => r.some(c => c !== ""))) continue;
+
+                    const cleanSheet = XLSX.utils.aoa_to_sheet(cleanJson);
+                    let cleanBuffer = XLSX.write({ SheetNames: ["sheet"], Sheets: { sheet: cleanSheet } }, { bookType: "csv", type: "array", codepage: 950 });
+                    let finalFileName = hasMultipleSheets ? `${originalBaseName}_${name}.csv` : `${originalBaseName}.csv`;
+
+                    const singleTesterZip = new JSZip();
+                    singleTesterZip.file(finalFileName, cleanBuffer);
+                    let testBlob = await singleTesterZip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+
+                    finalProcessedItems.push({
+                        id: i + "_" + name,
+                        name: finalFileName,
+                        data: cleanBuffer,
+                        cleanSize: cleanBuffer.byteLength,
+                        originalSize: itemFile.size,
+                        realCompressedSize: testBlob.size
+                    });
+                    testBlob = null;
+                }
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    updateProgress(65, "分析完成，已產生列表");
+    document.getElementById('submitBtn').disabled = false;
+    analyzeBtn.disabled = false;
+    
+    renderTableList();
+}
+
+// 渲染報表列表，並附加動態 Checkbox
+function renderTableList() {
+    const resultTable = document.getElementById('result');
+    resultTable.innerHTML = "";
+    
+    finalProcessedItems.forEach(item => {
+        resultTable.innerHTML += `
+            <tr id="row_${item.id}">
+                <td class="chk-col"><input type="checkbox" class="chk-file" data-id="${item.id}" checked onchange="recalculateSplits()"></td>
+                <td style="text-align:left; font-weight:500;">${item.name}</td>
+                <td>${formatMB(item.originalSize)} MB</td>
+                <td style="color: #666;">${formatMB(item.cleanSize)} MB</td>
+                <td style="color: #e67e22; font-weight: bold;">${formatMB(item.realCompressedSize)} MB</td>
+                <td id="split_idx_${item.id}" style="color: #1a73e8; font-weight: bold;">-</td>
+            </tr>
+        `;
+    });
+    
+    recalculateSplits();
+}
+
+// 💡 智慧精準預計算：排除掉沒有打勾的檔案
+function recalculateSplits() {
+    if (!finalProcessedItems.length) return;
+
+    const maxMb = parseFloat(document.getElementById('maxMbInput').value) || 5.0;
+    const maxBytes = maxMb * 1024 * 1024;
+    const estText = document.getElementById('estimationText');
+
+    // 取得當前所有打勾的檔案 ID 集合
+    const checkedIds = Array.from(document.querySelectorAll('.chk-file:checked')).map(chk => chk.getAttribute('data-id'));
+    
+    let currentZipSizeAccumulator = 0;
+    let zipPartCounter = 1;
+    let totalRealZipSizeSum = 0;
+    let activeCount = 0;
+
+    finalProcessedItems.forEach(item => {
+        const cell = document.getElementById(`split_idx_${item.id}`);
+        
+        // 如果該檔案沒有被打勾，標記為排除狀態
+        if (!checkedIds.includes(String(item.id))) {
+            if (cell) cell.innerHTML = `<span style="color:#aaa; font-weight:normal;">🚫 已排除</span>`;
+            return;
+        }
+
+        activeCount++;
+        let itemSizeWithOverhead = item.realCompressedSize + 150; 
+
+        if (currentZipSizeAccumulator + itemSizeWithOverhead > maxBytes && currentZipSizeAccumulator > 0) {
+            zipPartCounter++;
+            currentZipSizeAccumulator = 0;
+        }
+
+        currentZipSizeAccumulator += itemSizeWithOverhead;
+        totalRealZipSizeSum += item.realCompressedSize;
+
+        if (cell) cell.innerHTML = `第 ${zipPartCounter} 包`;
+    });
+
+    if (activeCount === 0) {
+        estText.style.color = "#d93025";
+        estText.innerHTML = `❌ 未勾選任何要壓縮下載的檔案！`;
+        document.getElementById('submitBtn').disabled = true;
+        return;
+    }
+    
+    document.getElementById('submitBtn').disabled = false;
+    estText.style.color = "#27ae60";
+    estText.innerHTML = `✅ 封裝計算中：勾選 ${activeCount} 個檔案，總計約 <span class="estimation-box">${formatMB(totalRealZipSizeSum)} MB</span> (切分為 ${zipPartCounter} 包)`;
+}
+
+// 第二階段：滾動阻斷正式打包下載 (僅對勾選項目進行打包)
+async function downloadAllZips() {
+    if (!finalProcessedItems.length) return;
+
+    const maxMb = parseFloat(document.getElementById('maxMbInput').value) || 5.0;
+    const maxBytes = maxMb * 1024 * 1024;
+    const summary = document.getElementById('summary');
+    const btn = document.getElementById('submitBtn');
+    
+    let customZipName = document.getElementById('zipNameInput').value.trim();
+    if (!customZipName || customZipName === "(跟隨上傳檔案名稱)") customZipName = "compressed_files";
+
+    btn.disabled = true;
+    summary.innerText = "";
+
+    // 💡 核心過濾：只篩選出被使用者打勾的項目送入打包工廠
+    const checkedIds = Array.from(document.querySelectorAll('.chk-file:checked')).map(chk => chk.getAttribute('data-id'));
+    const targetItems = finalProcessedItems.filter(item => checkedIds.includes(String(item.id)));
+
+    if (targetItems.length === 0) {
+        alert("請至少勾選一個檔案！");
+        btn.disabled = false;
+        return;
+    }
+
+    // 階段 1：流暢計算總包數
+    let tempZip = new JSZip();
+    let tempFileCount = 0;
+    let totalZipCountCalculated = 1;
+
+    for (let k = 0; k < targetItems.length; k++) {
+        const item = targetItems[k];
+        await sleep(5);
+        if (tempFileCount === 0) {
+            tempZip.file(item.name, item.data);
+            tempFileCount++;
+        } else {
+            const sandboxZip = new JSZip();
+            for (const f in tempZip.files) { sandboxZip.file(f, tempZip.files[f]._data); }
+            sandboxZip.file(item.name, item.data);
+            const sandboxBlob = await sandboxZip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+            
+            if (sandboxBlob.size > maxBytes) {
+                totalZipCountCalculated++;
+                tempZip = new JSZip();
+                tempZip.file(item.name, item.data);
+                tempFileCount = 1;
+            } else {
+                tempZip.file(item.name, item.data);
+                tempFileCount++;
+            }
+        }
+    }
+
+    // 階段 2：滾動式實體打包
+    let currentZip = new JSZip();
+    let zipPartCounter = 1;
+    let currentZipFileCount = 0;
+
+    for (let k = 0; k < targetItems.length; k++) {
+        const item = targetItems[k];
+        updateProgress(65 + Math.round((k / targetItems.length) * 30), `打包中 (${k+1}/${targetItems.length})...`);
+        await sleep(15);
+
+        if (currentZipFileCount === 0) {
+            currentZip.file(item.name, item.data);
+            currentZipFileCount++;
+        } else {
+            const sandboxZip = new JSZip();
+            for (const filename in currentZip.files) { sandboxZip.file(filename, currentZip.files[filename]._data); }
+            sandboxZip.file(item.name, item.data);
+
+            const sandboxBlob = await sandboxZip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+
+            if (sandboxBlob.size > maxBytes) {
+                let currentDownloadName = totalZipCountCalculated > 1 ? `${customZipName}_part${zipPartCounter}.zip` : `${customZipName}.zip`;
+                await downloadZip(currentZip, currentDownloadName);
+
+                currentZip = new JSZip();
+                currentZip.file(item.name, item.data);
+                currentZipFileCount = 1;
+                zipPartCounter++;
+            } else {
+                currentZip.file(item.name, item.data);
+                currentZipFileCount++;
+            }
+        }
+    }
+
+    if (currentZipFileCount > 0) {
+        let currentDownloadName = totalZipCountCalculated > 1 ? `${customZipName}_part${zipPartCounter}.zip` : `${customZipName}.zip`;
+        await downloadZip(currentZip, currentDownloadName);
+    }
+
+    updateProgress(100, "分卷打包下載成功！");
+    summary.innerText = `🎉 處理完畢！已下載 ${totalZipCountCalculated} 個符合限制且命名為 [${customZipName}] 的高壓 ZIP 包！`;
+    btn.disabled = false;
+}
+
+async function downloadZip(zipObject, downloadName) {
+    const content = await zipObject.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(content);
+    link.download = downloadName;
+    link.click();
+    await new Promise(resolve => setTimeout(resolve, 700));
+}
+</script>
+
+</body>
+</html>
