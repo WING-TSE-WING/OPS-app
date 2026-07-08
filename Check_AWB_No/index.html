@@ -2,114 +2,447 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>AWB 擷取工具（拖曳＋去重）</title>
+<title>AWB 智能對照與異常分析工具 (v11 完整版)</title>
 
-<!-- ✅ JSZip 正確載入（關鍵） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body {
-    font-family: Arial;
-    padding: 20px;
-}
+body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f9; color: #333; }
+.container { max-width: 1200px; margin: 0 auto; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+.drop-zone { border: 3px dashed #cbd5e1; padding: 20px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: bold; margin-bottom: 15px; }
+.drop-zone.dragover { border-color: #0078D7; background: #eef6ff; color: #0078D7; }
+.status-msg { margin-top: 10px; font-weight: bold; font-size: 14px; color: #1e293b; }
+textarea { width: 100%; height: 120px; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; font-size: 13px; margin-top: 10px; background-color: #f8fafc; }
+.paste-input { background-color: #fff !important; border: 2px dashed #0078D7; height: 120px; }
+.action-bar { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; text-align: center; }
 
-#dropZone {
-    border: 3px dashed #999;
-    padding: 40px;
-    text-align: center;
-    color: #666;
-    margin-bottom: 20px;
-    transition: 0.2s;
-}
-
-#dropZone.dragover {
-    border-color: #0078D7;
-    background: #eef6ff;
-    color: #0078D7;
-}
-
-textarea {
-    width: 100%;
-    height: 300px;
-}
-
-button {
-    margin-top: 10px;
-    padding: 8px 16px;
-}
+button { padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: 0.1s; margin: 5px; }
+.btn-template { background-color: #0078D7; color: white; }
+.btn-template:hover { background-color: #005a9e; }
+.btn-download { background-color: #d93025; color: white; padding: 12px 24px; font-size: 15px; }
+.btn-download:hover { background-color: #b3241b; }
+.btn-download:disabled, .btn-copy:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+.btn-copy { background-color: #f59e0b; color: white; }
+.btn-copy:hover { background-color: #d97706; }
+.btn-copy-success { background-color: #10b981; color: white; }
+.btn-copy-success:hover { background-color: #059669; }
+.table-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; white-space: nowrap; }
+th { background-color: #f1f5f9; color: #334155; }
+.status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; }
+.bg-found { background-color: #e6f4ea; color: #137333; }
+.bg-missing { background-color: #fce8e6; color: #c5221f; }
 </style>
 </head>
 
 <body>
 
-<h2>Word AWB 擷取工具（拖檔／選檔・自動去重）</h2>
+<div class="container">
+    <h2>Word AWB 對照與異常下載工具 (v11 完整功能修正版)</h2>
+    <p style="color: #64748b; font-size: 14px;">💡 <b>更新要點：</b> 即使您貼上資料時沒有複製表頭，系統也會<b>自動為您補上綠色標準表頭</b>。另外新增了模板下載、一鍵複製未Link/已Link單號功能。</p>
 
-<div id="dropZone">
-    📂 把 Word (.docx) 拖到這裡<br>
-    或<br><br>
-    <input type="file" accept=".docx" id="fileInput">
+    <div style="margin-bottom: 15px;">
+        <button class="btn-template" onclick="downloadTemplate()">📋 📥 下載標準對照表 Excel 模板</button>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>📂 1. 請放入 Word (.docx) 檔案</h3>
+            <div id="wordDropZone" class="drop-zone">
+                把 Word 檔案拖到這裡 或 點擊選取檔案
+                <input type="file" accept=".docx" id="wordFileInput" style="display:none;">
+            </div>
+            <div id="wordStatus" class="status-msg">💡 尚未讀取 Word 檔案</div>
+            <textarea id="wordOutput" readonly placeholder="Word 內含的 AWB 清單..."></textarea>
+        </div>
+
+        <div class="card">
+            <h3>📊 2. 請放入或「直接貼上」對照表資料</h3>
+            <div id="excelDropZone" class="drop-zone">
+                方案 A：把 Excel 檔案拖到這裡或選取
+                <input type="file" accept=".xlsx, .xls" id="excelFileInput" style="display:none;">
+            </div>
+            
+            <div style="font-weight: bold; margin: 5px 0; color: #0078D7;">或者 方案 B：直接在下方框內【按 Ctrl+V 貼上數據】</div>
+            <textarea id="excelPasteArea" class="paste-input" placeholder="選取 Excel 資料列複製（有無複製到綠色標頭皆可），點擊此處並貼上..." oninput="handleExcelPaste()"></textarea>
+
+            <div id="excelStatus" class="status-msg">💡 尚未讀取 Excel 數據</div>
+            <textarea id="excelOutput" readonly placeholder="辨識出的 MAWB 號碼..."></textarea>
+        </div>
+    </div>
+
+    <div class="action-bar">
+        <button id="downloadBtn" class="btn-download" onclick="exportMissingExcel()" disabled>📥 一鍵下載【未 Link】的 11 欄異常 Excel 報表</button>
+        <br><br>
+        <button id="copyMissingBtn" class="btn-copy" onclick="copyMissingAwbs()" disabled>📋 複製【沒有（未Link）】的提單號</button>
+        <button id="copyFoundBtn" class="btn-copy-success" onclick="copyFoundAwbs()" disabled>📋 複製【已有（已Link）】的提單號</button>
+        <div id="summaryText" style="margin-top: 10px; font-weight: bold; color: #475569;"></div>
+    </div>
+
+    <div class="table-container" id="resultPreviewCard" style="display: none;">
+        <h3>🔍 即時比對結果預覽 (自動強制補齊 11 個核心監控表頭)</h3>
+        <table>
+            <thead>
+                <tr id="tableHeader">
+                    <th>功能操作</th>
+                    <th>Link 狀態</th>
+                </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+        </table>
+    </div>
 </div>
 
-<textarea id="output" placeholder="AWB 結果會顯示在這裡（已自動去重）"></textarea>
-
-<br>
-<button onclick="copyAll()">📋 一鍵 COPY</button>
-
 <script>
-const dropZone = document.getElementById("dropZone");
-const fileInput = document.getElementById("fileInput");
+let wordAwbSet = new Set();
+let excelRowsData = [];
 
-dropZone.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropZone.classList.add("dragover");
-});
+// 固定導出與核對的 11 個核心標準監控欄位
+const targetFields = [
+    "Responsible Party/\r\n異常報告", 
+    "MAWB", 
+    "Flight", 
+    "FlightRouting", 
+    "运力服务商编码", 
+    "起飛時間", 
+    "ISSUING\r\nAGENT", 
+    "ISSUING AGENT\r\nRA#", 
+    "UTK\r\nPARTY", 
+    "UTK\r\nRA#", 
+    "交單方法"
+];
 
-dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("dragover");
-});
+function getCleanKey(str) {
+    return String(str || "").replace(/[\r\n""'']/g, "").replace(/\s+/g, "").trim().toUpperCase();
+}
+const cleanTargetFields = targetFields.map(f => getCleanKey(f));
 
-dropZone.addEventListener("drop", e => {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
-    handleFile(e.dataTransfer.files[0]);
-});
+const wordDropZone = document.getElementById("wordDropZone");
+const wordFileInput = document.getElementById("wordFileInput");
+const wordStatus = document.getElementById("wordStatus");
+const wordOutput = document.getElementById("wordOutput");
+const excelDropZone = document.getElementById("excelDropZone");
+const excelFileInput = document.getElementById("excelFileInput");
+const excelStatus = document.getElementById("excelStatus");
+const excelOutput = document.getElementById("excelOutput");
+const excelPasteArea = document.getElementById("excelPasteArea");
+const downloadBtn = document.getElementById("downloadBtn");
+const copyMissingBtn = document.getElementById("copyMissingBtn");
+const copyFoundBtn = document.getElementById("copyFoundBtn");
+const summaryText = document.getElementById("summaryText");
+const resultPreviewCard = document.getElementById("resultPreviewCard");
+const tableHeader = document.getElementById("tableHeader");
+const resultBody = document.getElementById("resultBody");
 
-fileInput.addEventListener("change", e => {
-    handleFile(e.target.files[0]);
-});
+wordDropZone.addEventListener("click", () => wordFileInput.click());
+excelDropZone.addEventListener("click", () => excelFileInput.click());
+setupDragDropEffects(wordDropZone);
+setupDragDropEffects(excelDropZone);
 
-async function handleFile(file) {
-    if (!file || !file.name.endsWith(".docx")) {
-        alert("請選擇 Word (.docx) 檔案");
+wordDropZone.addEventListener("drop", e => { e.preventDefault(); handleWordFile(e.dataTransfer.files[0]); });
+wordFileInput.addEventListener("change", e => { handleWordFile(e.target.files[0]); });
+excelDropZone.addEventListener("drop", e => { e.preventDefault(); handleExcelFile(e.dataTransfer.files[0]); });
+excelFileInput.addEventListener("change", e => { handleExcelFile(e.target.files[0]); });
+
+function setupDragDropEffects(zone) {
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+}
+
+// 1. 下載 Excel 模板功能
+function downloadTemplate() {
+    // 建立一列只包含 11 個表頭的空白工作表
+    const headerRow = {};
+    targetFields.forEach(f => {
+        headerRow[f] = ""; 
+    });
+    const worksheet = XLSX.utils.json_to_sheet([headerRow], { header: targetFields });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "對照模板");
+    XLSX.writeFile(workbook, "AWB_11欄位標準對照模板.xlsx");
+}
+
+// Word 解析
+async function handleWordFile(file) {
+    if (!file || !file.name.endsWith(".docx")) { alert("請選擇 Word 檔案"); return; }
+    wordStatus.innerText = "⏳ 正在強力解析 Word 檔案內容...";
+    wordAwbSet.clear();
+    try {
+        const zip = await JSZip.loadAsync(file);
+        const xml = await zip.file("word/document.xml").async("string");
+        let text = xml.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+        const regex = /[0-9]{3}-[0-9]{8}/g;
+        let match;
+        while ((match = regex.exec(text)) !== null) { wordAwbSet.add(match[0]); }
+        const resultArr = Array.from(wordAwbSet);
+        if (resultArr.length > 0) {
+            wordOutput.value = resultArr.join("\n");
+            wordStatus.style.color = "#137333";
+            wordStatus.innerText = `✅ 成功！強力擷取到 ${resultArr.length} 筆提單號碼。`;
+        } else {
+            wordOutput.value = "⚠️ 找不到任何 3碼-8碼 格式的單號。";
+            wordStatus.style.color = "#c5221f";
+            wordStatus.innerText = "⚠️ 讀取完成，但 Word 內找不到任何提單號碼。";
+        }
+        checkAndRunComparison();
+    } catch (err) {
+        wordStatus.innerText = "❌ 讀取 Word 檔案失敗。";
+    }
+}
+
+// Excel 檔案讀取
+function handleExcelFile(file) {
+    if (!file) return;
+    excelStatus.innerText = "⏳ 正在讀取 Excel 檔案...";
+    excelPasteArea.value = "";
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            if (rawData.length === 0) { alert("⚠️ 檔案內沒有資料"); return; }
+            parseTwoDimensionalArray(rawData);
+        } catch (err) {
+            alert("❌ 讀取 Excel 檔案錯誤。");
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// 貼上文字解析
+function handleExcelPaste() {
+    let rawText = excelPasteArea.value;
+    if (!rawText.trim()) return;
+
+    let rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < rawText.length; i++) {
+        let c = rawText[i];
+        let next = rawText[i+1];
+
+        if (c === '"') {
+            inQuotes = !inQuotes;
+        } else if (c === '\t' && !inQuotes) {
+            currentRow.push(currentCell);
+            currentCell = '';
+        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+            if (c === '\r' && next === '\n') { i++; }
+            currentRow.push(currentCell);
+            rows.push(currentRow);
+            currentRow = [];
+            currentCell = '';
+        } else {
+            currentCell += c;
+        }
+    }
+    if (currentCell || currentRow.length > 0) {
+        currentRow.push(currentCell);
+        rows.push(currentRow);
+    }
+
+    parseTwoDimensionalArray(rows);
+}
+
+// 核心對齊引擎（修復：強制讓無表頭數據對應到標準表頭）
+function parseTwoDimensionalArray(matrix) {
+    if (matrix.length === 0) return;
+
+    let detectedHeaderIdx = -1;
+    let maxMatches = 0;
+
+    for (let i = 0; i < Math.min(5, matrix.length); i++) {
+        let matches = matrix[i].filter(cell => {
+            let cleanCell = getCleanKey(cell);
+            return cleanTargetFields.some(f => cleanCell.includes(f) || f.includes(cleanCell));
+        }).length;
+        if (matches > maxMatches && matches >= 2) { 
+            maxMatches = matches;
+            detectedHeaderIdx = i;
+        }
+    }
+
+    let headerMap = {};
+    let startDataRowIdx = 0;
+
+    if (detectedHeaderIdx !== -1) {
+        // 【模式一：有表頭】
+        let headerCells = matrix[detectedHeaderIdx];
+        targetFields.forEach((field, fIdx) => {
+            let targetClean = cleanTargetFields[fIdx];
+            let foundIdx = headerCells.findIndex(cell => {
+                let cellClean = getCleanKey(cell);
+                return cellClean === targetClean || cellClean.includes(targetClean) || targetClean.includes(cellClean);
+            });
+            if (foundIdx !== -1) headerMap[field] = foundIdx;
+        });
+        startDataRowIdx = detectedHeaderIdx + 1;
+    } else {
+        // 【模式二：盲抓無表頭】尋找提單格式列強行進行 Offset 定位
+        let sampleMawbColIdx = -1;
+        for (let r = 0; r < matrix.length; r++) {
+            let idx = matrix[r].findIndex(c => /[0-9]{3}-[0-9]{8}/.test(c));
+            if (idx !== -1) {
+                sampleMawbColIdx = idx;
+                break;
+            }
+        }
+
+        if (sampleMawbColIdx !== -1) {
+            headerMap["Responsible Party/\r\n異常報告"] = sampleMawbColIdx - 1; // 修正偏移：MAWB 前面一欄就是 Responsible Party
+            headerMap["MAWB"] = sampleMawbColIdx;
+            headerMap["Flight"] = sampleMawbColIdx + 1;
+            headerMap["FlightRouting"] = sampleMawbColIdx + 2;
+            headerMap["运力服务商编码"] = sampleMawbColIdx + 3;
+            headerMap["起飛時間"] = sampleMawbColIdx + 4;
+            headerMap["ISSUING\r\nAGENT"] = sampleMawbColIdx + 5;
+            headerMap["ISSUING AGENT\r\nRA#"] = sampleMawbColIdx + 6;
+            headerMap["UTK\r\nPARTY"] = sampleMawbColIdx + 7;
+            headerMap["UTK\r\nRA#"] = sampleMawbColIdx + 8;
+            headerMap["交單方法"] = sampleMawbColIdx + 9;
+        }
+        startDataRowIdx = 0; 
+    }
+
+    excelRowsData = [];
+    for (let i = startDataRowIdx; i < matrix.length; i++) {
+        let rowCells = matrix[i];
+        if (rowCells.length <= 1 && !rowCells[0]) continue;
+
+        let standardRow = {};
+        // 核心修正：不論來源如何，這邊一律打包成標準 targetFields 的 Key
+        targetFields.forEach(field => {
+            let colIdx = headerMap[field];
+            standardRow[field] = (colIdx !== undefined && rowCells[colIdx] !== undefined) ? rowCells[colIdx].trim() : "";
+        });
+
+        if (!standardRow["MAWB"]) {
+            let rowStr = rowCells.join(" ");
+            let match = rowStr.match(/[0-9]{3}-[0-9]{8}/);
+            if (match) standardRow["MAWB"] = match[0];
+        }
+
+        if (standardRow["MAWB"]) {
+            excelRowsData.push(standardRow);
+        }
+    }
+
+    let detectedAwbs = excelRowsData.map(r => r["MAWB"]);
+    excelOutput.value = detectedAwbs.join("\n");
+    excelStatus.style.color = "#137333";
+    excelStatus.innerText = `✅ 成功！已進入智能對齊，強制生成 11 欄標準表頭，共載入 ${excelRowsData.length} 筆提單。`;
+
+    checkAndRunComparison();
+}
+
+// 比對與渲染
+function checkAndRunComparison() {
+    if (excelRowsData.length === 0) return;
+
+    // 渲染網頁上的表頭文字
+    let headerHtml = `<th>功能操作</th><th>Link 狀態</th>`;
+    targetFields.forEach(h => { headerHtml += `<th>${h.replace(/\r|\n/g, " ")}</th>`; });
+    tableHeader.innerHTML = headerHtml;
+
+    let htmlBuffer = "";
+    let missingCount = 0;
+    let foundCount = 0;
+
+    excelRowsData.forEach(row => {
+        let awb = row["MAWB"] || "";
+        let isExist = awb && wordAwbSet.has(awb);
+        let statusBadge = "";
+        let actionBtn = "";
+
+        if (isExist) {
+            statusBadge = `<span class="status-badge bg-found">V 已 Link</span>`;
+            actionBtn = `<span style="color:#999; font-size:11px;">無需處理</span>`;
+            foundCount++;
+        } else {
+            statusBadge = `<span class="status-badge bg-missing">X 未 Link</span>`;
+            missingCount++;
+            let flightVal = row["Flight"] || "未知";
+            let subject = encodeURIComponent(`【催單】提單未 Link 確認 - MAWB: ${awb}`);
+            let body = encodeURIComponent(`您好：\n\n核對發現以下提單在 Word 中缺失（未 Link）：\n\n- 提單號 (MAWB): ${awb}\n- 航班 (Flight): ${flightVal}\n\n請協助核對，謝謝！`);
+            actionBtn = `<a href="mailto:?subject=${subject}&body=${body}" style="background-color:#ff9800;color:white;padding:4px 8px;font-size:11px;border-radius:3px;text-decoration:none;">📧 發信追</a>`;
+        }
+
+        htmlBuffer += `<tr><td>${actionBtn}</td><td>${statusBadge}</td>`;
+        targetFields.forEach(field => {
+            htmlBuffer += `<td>${row[field] || ""}</td>`;
+        });
+        htmlBuffer += `</tr>`;
+    });
+
+    resultBody.innerHTML = htmlBuffer;
+    resultPreviewCard.style.display = "block";
+    summaryText.innerHTML = `比對統計：共計 ${excelRowsData.length} 筆資料 ｜ 已 Link 成功：<span style="color:#137333;">${foundCount} 筆</span> ｜ 未 Link 異常：<span style="color:#c5221f;">${missingCount} 筆</span>`;
+    
+    downloadBtn.disabled = false;
+    copyMissingBtn.disabled = false;
+    copyFoundBtn.disabled = false;
+}
+
+// 2. 一鍵複製【沒有（未Link）】的提單號
+function copyMissingAwbs() {
+    let list = [];
+    excelRowsData.forEach(row => {
+        let awb = row["MAWB"];
+        if (awb && !wordAwbSet.has(awb)) {
+            list.push(awb);
+        }
+    });
+    if(list.length === 0) { alert("沒有任何未 Link 的提單號"); return; }
+    navigator.clipboard.writeText(list.join("\n"));
+    alert(`✅ 已複製 ${list.length} 筆【未 Link】的提單號碼！`);
+}
+
+// 3. 一鍵複製【已有（已Link）】的提單號
+function copyFoundAwbs() {
+    let list = [];
+    excelRowsData.forEach(row => {
+        let awb = row["MAWB"];
+        if (awb && wordAwbSet.has(awb)) {
+            list.push(awb);
+        }
+    });
+    if(list.length === 0) { alert("沒有任何已 Link 的提單號"); return; }
+    navigator.clipboard.writeText(list.join("\n"));
+    alert(`✅ 已複製 ${list.length} 筆【已 Link】的提單號碼！`);
+}
+
+// 4. 導出未 Link 異常項目並強制補齊正確表頭
+function exportMissingExcel() {
+    let missingRowsOutput = [];
+    excelRowsData.forEach(row => {
+        let awb = row["MAWB"] || "";
+        if (!wordAwbSet.has(awb)) {
+            let filteredRow = {};
+            targetFields.forEach(field => {
+                filteredRow[field] = row[field] || "";
+            });
+            missingRowsOutput.push(filteredRow);
+        }
+    });
+
+    if (missingRowsOutput.length === 0) {
+        alert("恭喜！所有提單已全數 Link 完畢，沒有任何異常項目。");
         return;
     }
 
-    const zip = await JSZip.loadAsync(file);
-    const xml = await zip.file("word/document.xml").async("string");
-
-    // 轉成純文字
-    const text = xml.replace(/<[^>]+>/g, "");
-
-    const regex = /Air Waybill No\.:\s*([0-9]{3}-[0-9]{8})/g;
-
-    const awbSet = new Set();
-    let match;
-
-    while ((match = regex.exec(text)) !== null) {
-        awbSet.add(match[1]);
-    }
-
-    const result = Array.from(awbSet);
-
-    document.getElementById("output").value =
-        result.length ? result.join("\n") : "⚠️ 找不到 Air Waybill No.";
-}
-
-function copyAll() {
-    const textarea = document.getElementById("output");
-    textarea.select();
-    document.execCommand("copy");
-    alert("✅ 已複製（重複 AWB 已移除）");
+    // 將資料轉為 Sheet，並強制指定正確的表頭名稱與順序
+    const worksheet = XLSX.utils.json_to_sheet(missingRowsOutput, { header: targetFields });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "未Link異常項目");
+    XLSX.writeFile(workbook, "未Link_異常催單清單.xlsx");
 }
 </script>
 
