@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
-
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OPS Apps</title>
 
 <style>
@@ -16,70 +14,73 @@
 }
 
 body{
-    font-family:"Segoe UI",sans-serif;
-    background:#f3f4f6;
+    font-family:"Segoe UI", Arial, sans-serif;
+    background:#f3f6fb;
+    min-height:100vh;
 }
 
-header{
+.header{
     text-align:center;
     padding:40px 20px;
 }
 
-header h1{
+.header h1{
     font-size:42px;
     color:#2563eb;
+    font-weight:700;
 }
 
-.apps-grid{
-    max-width:1100px;
+.header p{
+    margin-top:10px;
+    color:#666;
+}
+
+.container{
+    max-width:1200px;
     margin:auto;
     padding:20px;
 
     display:grid;
     grid-template-columns:
-        repeat(auto-fit,minmax(180px,1fr));
+        repeat(auto-fit,minmax(200px,1fr));
 
-    gap:20px;
+    gap:25px;
 }
 
 .card{
     background:white;
+    border-radius:20px;
 
     min-height:180px;
-
-    border-radius:18px;
-
-    text-decoration:none;
-    color:#333;
 
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
 
-    transition:0.25s;
+    text-decoration:none;
+    color:#333;
+
+    transition:all .25s ease;
 
     box-shadow:
-    0 4px 12px rgba(0,0,0,.08);
+        0 4px 12px rgba(0,0,0,.08);
 }
 
 .card:hover{
-
     background:#2563eb;
     color:white;
 
     transform:
-    translateY(-6px);
+        translateY(-6px);
 
     box-shadow:
-    0 15px 30px rgba(37,99,235,.30);
+        0 12px 25px rgba(37,99,235,.25);
 }
 
 .icon{
-
-    font-size:58px;
+    font-size:60px;
     margin-bottom:15px;
-
     transition:.25s;
 }
 
@@ -90,6 +91,8 @@ header h1{
 .card-title{
     font-size:18px;
     font-weight:600;
+    text-align:center;
+    padding:0 10px;
 }
 
 footer{
@@ -99,50 +102,51 @@ footer{
 }
 
 </style>
-
 </head>
 
 <body>
 
-<header>
+<div class="header">
     <h1>🚀 OPS Apps</h1>
-</header>
+    <p>Operations Internal Tools</p>
+</div>
 
-<div class="apps-grid">
+<div class="container">
 
-    Volume_Tools/
+    ./Volume_Tools/
         <div class="icon">📊</div>
-        <div class="card-title">Volume</div>
+        <div class="card-title">Volume Tools</div>
     </a>
 
-    Ezycargo_Tools/
+    <a class="card" /
         <div class="icon">🧮</div>
-        <div class="card-title">EzyCargo</div>
+        <div class="card-title">Ezycargo Tools</div>
     </a>
 
-    Undertaking_Tools_V5/
-        <div class="icon">📦</div>
-        <div class="card-title">Undertaking</div>
+    <a class="card" href="./Undertaking_ class="icon">📦</div>
+        <div class="card-title">Undertaking Tools</div>
     </a>
 
-    PDF_Tools/
+    ./PDF_Tools/
         <div class="icon">📄</div>
         <div class="card-title">PDF Tools</div>
     </a>
 
-    <a class="card" href="Excel_Batch_    <div class="icon">📁</div>
-        <div class="card-title">Excel ZIP</div>
+    <a class="card" href="./Excel_Batch_    <div class="icon">📁</div>
+        <div class="card-title">Excel Compression</div>
     </a>
 
-    <a class="card" href="Order_Assignmentass="icon">🤖</div>
-        <div class="card-title">Assignment</div>
+    ./Order_Assignment_Tool/
+        <div class="icon">🤖</div>
+        <div class="card-title">Order Assignment</div>
     </a>
 
 </div>
 
 <footer>
-    OPS Internal Tools
+    OPS Internal Portal
 </footer>
 
 </body>
 </html>
+`
