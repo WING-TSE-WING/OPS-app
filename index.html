@@ -3,9 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPS Apps</title>
+
+<title>OPS Operation Center</title>
 
 <style>
+
+:root{
+    --primary:#2563eb;
+    --primary-hover:#1d4ed8;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --text:#1f2937;
+    --text-light:#6b7280;
+}
 
 *{
     margin:0;
@@ -14,91 +24,105 @@
 }
 
 body{
-    font-family:"Segoe UI", Arial, sans-serif;
-    background:#f3f6fb;
-    min-height:100vh;
+    font-family:"Segoe UI",Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
 }
 
 .header{
-    text-align:center;
+    background:linear-gradient(135deg,#2563eb,#1e3a8a);
+    color:white;
     padding:40px 20px;
+    text-align:center;
 }
 
 .header h1{
     font-size:42px;
-    color:#2563eb;
-    font-weight:700;
+    margin-bottom:10px;
 }
 
 .header p{
-    margin-top:10px;
-    color:#666;
+    opacity:.9;
 }
 
 .container{
-    max-width:1200px;
+    max-width:1400px;
     margin:auto;
-    padding:20px;
+    padding:40px 25px;
 
     display:grid;
     grid-template-columns:
-        repeat(auto-fit,minmax(200px,1fr));
+        repeat(auto-fit,minmax(260px,1fr));
 
-    gap:25px;
+    gap:24px;
 }
 
 .card{
-    background:white;
-    border-radius:20px;
-
-    min-height:180px;
-
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
+    background:var(--card);
+    border-radius:18px;
+    padding:28px;
 
     text-decoration:none;
-    color:#333;
+    color:inherit;
 
     transition:all .25s ease;
 
+    border:1px solid #e5e7eb;
+
     box-shadow:
-        0 4px 12px rgba(0,0,0,.08);
+        0 4px 12px rgba(0,0,0,.05);
 }
 
 .card:hover{
-    background:#2563eb;
-    color:white;
+    transform:translateY(-6px);
 
-    transform:
-        translateY(-6px);
+    border-color:#2563eb;
 
     box-shadow:
-        0 12px 25px rgba(37,99,235,.25);
+        0 12px 30px rgba(37,99,235,.15);
 }
 
 .icon{
-    font-size:60px;
-    margin-bottom:15px;
-    transition:.25s;
+    width:60px;
+    height:60px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-size:32px;
+
+    border-radius:15px;
+
+    background:#eff6ff;
+
+    margin-bottom:20px;
 }
 
-.card:hover .icon{
-    transform:scale(1.15);
+.card h2{
+    font-size:20px;
+    margin-bottom:10px;
 }
 
-.card-title{
-    font-size:18px;
+.card p{
+    color:var(--text-light);
+    line-height:1.6;
+    min-height:52px;
+}
+
+.open{
+    margin-top:18px;
+
+    font-size:14px;
     font-weight:600;
-    text-align:center;
-    padding:0 10px;
+
+    color:var(--primary);
 }
 
-footer{
+.footer{
     text-align:center;
-    padding:30px;
-    color:#888;
+    padding:25px;
+    color:#999;
 }
 
 </style>
@@ -107,46 +131,63 @@ footer{
 <body>
 
 <div class="header">
-    <h1>🚀 OPS Apps</h1>
-    <p>Operations Internal Tools</p>
+    <h1>🚀 OPS Operation Center</h1>
+    <p>Operations Internal Tools Portal</p>
 </div>
 
 <div class="container">
 
-    ./Volume_Tools/
+    Volume_Tools/
         <div class="icon">📊</div>
-        <div class="card-title">Volume Tools</div>
+        <h2>Volume Tools</h2>
+        <p>Volume 報表分析及資料查詢工具。</p>
+        <div class="open">Open →</div>
     </a>
 
-    <a class="card" /
+    <aycargo_Tools/
         <div class="icon">🧮</div>
-        <div class="card-title">Ezycargo Tools</div>
+        <h2>Ezycargo Tools</h2>
+        <p>Ezycargo 日常操作及資料處理工具。</p>
+        <div class="open">Open →</div>
     </a>
 
-    <a class="card" href="./Undertaking_ class="icon">📦</div>
-        <div class="card-title">Undertaking Tools</div>
+    <a class="card" href="Undertakingv class="icon">📦</div>
+        <h2>Undertaking Tools</h2>
+        <p>產生及管理 Undertaking 文件與相關資料。</p>
+        <div class="open">Open →</div>
     </a>
 
-    ./PDF_Tools/
+    <aF_Tools/
         <div class="icon">📄</div>
-        <div class="card-title">PDF Tools</div>
+        <h2>PDF Tools</h2>
+        <p>PDF 文件合併、拆分及處理工具。</p>
+        <div class="open">Open →</div>
     </a>
 
-    <a class="card" href="./Excel_Batch_    <div class="icon">📁</div>
-        <div class="card-title">Excel Compression</div>
+    <a class="card" href="Excel_Batch_Com <div class="icon">📁</div>
+        <h2>Excel Compression</h2>
+        <p>支援 XLSX、CSV 及 ZIP 批次壓縮處理。</p>
+        <div class="open">Open →</div>
     </a>
 
-    ./Order_Assignment_Tool/
-        <div class="icon">🤖</div>
-        <div class="card-title">Order Assignment</div>
+    <a class="card" href="Order_Assignmentass="icon">🤖</div>
+        <h2>Order Assignment</h2>
+        <p>提單號自動分組並匯出 Excel。</p>
+        <div class="open">Open →</div>
+    </a>
+
+    <aeck_AWB_No/
+        <div class="icon">✈️</div>
+        <h2>Check AWB No</h2>
+        <p>從 Word 檔案自動提取所有 Air Waybill 號碼。</p>
+        <div class="open">Open →</div>
     </a>
 
 </div>
 
-<footer>
+<div class="footer">
     OPS Internal Portal
-</footer>
+</div>
 
 </body>
 </html>
-`
