@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAT AWB Tracking Dashboard (Multi-Row Aggregation V7)</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css">
+    <script type="text/javascript" charset="utf-8" src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --danger-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --panel-bg: #ffffff;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { margin-bottom: 25px; border-bottom: 3px solid var(--primary-color); padding-bottom: 10px; }
+        header h1 { margin: 0; color: var(--primary-color); font-size: 24px; }
+
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid #ddd; }
+        .tab-btn {
+            padding: 10px 20px; background: #e9ecef; border: 1px solid #ddd; border-bottom: none;
+            cursor: pointer; font-weight: bold; font-size: 14px; margin-right: 5px;
+            border-top-left-radius: 4px; border-top-right-radius: 4px; color: #666; transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--panel-bg); color: var(--primary-color); border-bottom: 1px solid var(--panel-bg);
+            margin-bottom: -1px; box-shadow: inset 0 3px 0 var(--accent-color);
+        }
+
+        .tab-content { display: none; background: var(--panel-bg); padding: 20px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #ddd; }
+        .tab-content.active { display: block; }
+
+        .panel { background: var(--panel-bg); border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; margin-bottom: 20px; }
+        .panel-title { font-size: 16px; font-weight: bold; margin-top: 0; margin-bottom: 15px; color: var(--primary-color); border-left: 4px solid var(--accent-color); padding-left: 8px; }
+
+        textarea { width: 100%; height: 220px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; font-family: monospace; box-sizing: border-box; font-size: 13px; }
+        .btn-group { margin-top: 10px; display: flex; gap: 10px; }
+
+        button { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; }
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-success:hover { background-color: #27ae60; }
+        .btn-secondary { background-color: #95a5a6; color: white; }
+        .btn-secondary:hover { background-color: #7f8c8d; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .stat-card .label { font-size: 13px; color: #7f8c8d; margin-bottom: 5px; font-weight: 500; }
+        .stat-card .value { font-size: 22px; font-weight: bold; color: var(--primary-color); }
+        .stat-card.accepted { border-top: 4px solid var(--success-color); }
+        .stat-card.pending { border-top: 4px solid var(--warning-color); }
+        .stat-card.invalid { border-top: 4px solid var(--danger-color); }
+        .stat-card.total { border-top: 4px solid var(--accent-color); }
+
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; display: inline-block; }
+        .badge-accepted { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .badge-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .badge-invalid { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .filter-container { margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .filter-container select { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+
+        .group-row { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px 15px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; }
+        .group-text { font-family: monospace; font-size: 14px; word-break: break-all; color: #2d3748; flex-grow: 1; margin-right: 15px; }
+        .btn-copy { padding: 5px 10px; font-size: 12px; background-color: #edf2f7; color: #4a5568; border: 1px solid #cbd5e0; }
+        .btn-copy:hover { background-color: #e2e8f0; }
+
+        table.dataTable { font-size: 13px; }
+        table.dataTable thead th { background-color: #f1f3f5; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>AAT AWB Tracking & Grouping Dashboard</h1>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tracking-tab')">AAT Raw Data Tracking</button>
+        <button class="tab-btn" onclick="switchTab('grouping-tab')">AWB Group Tool (每10票分行)</button>
+    </div>
+
+    <div id="tracking-tab" class="tab-content active">
+        <div class="panel">
+            <p class="panel-title">貼上 AAT AWB Tracking 原始網頁資料</p>
+            <textarea id="rawInput" placeholder="請在此直接貼上從 AAT 系統查詢網頁複製下來的完整文字內容..."></textarea>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="processTrackingData()">解析並載入數據</button>
+                <button class="btn-secondary" onclick="clearTracking()">清除內容</button>
+                <button class="btn-success" id="exportExcelBtn" onclick="exportTrackingToExcel()" style="display:none;">匯出 Tracking Excel (.xlsx)</button>
+            </div>
+        </div>
+
+        <div class="dashboard" id="statsDashboard" style="display:none;">
+            <div class="stat-card total">
+                <div class="label">Total AWB</div>
+                <div class="value" id="statTotalAWB">0</div>
+            </div>
+            <div class="stat-card accepted">
+                <div class="label">Accepted</div>
+                <div class="value" id="statAccepted">0</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="label">Pending</div>
+                <div class="value" id="statPending">0</div>
+            </div>
+            <div class="stat-card invalid">
+                <div class="label">未交貨 (Invalid)</div>
+                <div class="value" id="statInvalid">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Pieces</div>
+                <div class="value" id="statTotalPieces">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Weight</div>
+                <div class="value" id="statTotalWeight">0.0</div>
+            </div>
+        </div>
+
+        <div class="panel" id="tablePanel" style="display:none;">
+            <p class="panel-title">解析結果明細 (V7 智慧引擎：完美解決一單多行、全量捕獲超長未交貨清單)</p>
+            <div class="filter-container">
+                <label for="statusFilter"><strong>快速狀態篩選：</strong></label>
+                <select id="statusFilter" onchange="filterStatus()">
+                    <option value="">全部顯示</option>
+                    <option value="Accepted">Accepted</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Invalid">Invalid / 未交貨</option>
+                </select>
+            </div>
+            <table id="trackingTable" class="display nowrap" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>AWB</th>
+                        <th>Origin</th>
+                        <th>Destination</th>
+                        <th>Pieces</th>
+                        <th>Weight</th>
+                        <th>Nature Of Goods</th>
+                        <th>FSU</th>
+                        <th>Status</th>
+                        <th>Date Time</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="grouping-tab" class="tab-content">
+        <div class="panel">
+            <p class="panel-title">輸入任意格式 AWB 號碼</p>
+            <textarea id="groupInput" placeholder="請輸入 AWB 號碼，此分組功能已自動過濾重複提單..."></textarea>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="processGrouping()">自動去重並分組</button>
+                <button class="btn-secondary" onclick="clearGrouping()">清除</button>
+                <button class="btn-success" id="exportGroupExcelBtn" onclick="exportGroupToExcel()" style="display:none;">匯出 AWB Group Excel</button>
+            </div>
+        </div>
+        <div class="panel" id="groupResultPanel" style="display:none;">
+            <p class="panel-title">分組結果 (不重複提單，每 10 票一行，總票數：<span id="groupTotalCount">0</span>)</p>
+            <div id="groupResultsContainer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let parsedTrackingMap = {}; 
+    let tableInstance = null;    
+    let currentGroupedRows = []; 
+
+    function switchTab(tabId) {
+        $('.tab-content').removeClass('active');
+        $('.tab-btn').removeClass('active');
+        $('#' + tabId).addClass('active');
+        $(event.target).addClass('active');
+        if (tabId === 'tracking-tab' && tableInstance) {
+            tableInstance.columns.adjust().draw();
+        }
+    }
+
+    function formatAWBStr(raw) {
+        if (!raw) return '';
+        let clean = raw.replace(/[^0-9]/g, '');
+        if (clean.length === 11) {
+            return clean.substring(0, 3) + '-' + clean.substring(3);
+        }
+        return raw;
+    }
+
+    function processTrackingData() {
+        const text = $('#rawInput').val();
+        if (!text.trim()) {
+            alert('請貼上 AAT 原始資料！');
+            return;
+        }
+
+        parsedTrackingMap = {};
+
+        // 【全新 V7 升級機制一】：全面捕獲可能無限拉長的 invalid 提單群
+        // 尋找所有 "AWB Number(s) ... are invalid" 字樣
+        const invalidBlockRegex = /AWB\s+Number\(s\)\s+([\d,\s]+)\s+are\s+invalid/gi;
+        let match;
+        while ((match = invalidBlockRegex.exec(text)) !== null) {
+            if (match[1]) {
+                let foundRawTokens = match[1].split(/[\s,]+/);
+                foundRawTokens.forEach(token => {
+                    let cleanToken = token.trim();
+                    if (/^\d{11}$/.test(cleanToken) || /^\d{3}-\d{8}$/.test(cleanToken)) {
+                        let formatted = formatAWBStr(cleanToken);
+                        if (formatted && !parsedTrackingMap[formatted]) {
+                            parsedTrackingMap[formatted] = {
+                                awb: formatted, origin: 'HKG', destination: 'N/A',
+                                pieces: 0, weight: 0.0, natureOfGoods: '(系統查無資料 / 未交貨)',
+                                fsu: 'N/A', status: 'Invalid', dateTime: '-'
+                            };
+                        }
+                    }
+                });
+            }
+        }
+
+        // 【全新 V7 升級機制二】：利用正則表達式，無痛拆解所有包含 "( EXPORT )" 或者標準提單段落
+        const blocks = text.split(/(?=\b\d{11}\s*\(\s*EXPORT\s*\))/i);
+        let targetBlocks = blocks.length > 1 ? blocks : text.split(/(?=\b\d{3}[- ]?\d{8}\b)/);
+
+        targetBlocks.forEach(block => {
+            let lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length === 0) return;
+
+            let blockAWB = null;
+            for (let k = 0; k < Math.min(lines.length, 4); k++) {
+                let m = lines[k].match(/\b(\d{3})[- ]?(\d{8})\b/);
+                if (m) { blockAWB = m[1] + '-' + m[2]; break; }
+            }
+
+            if (!blockAWB) return;
+
+            // 讀取當前盒子內部數據
+            let currentBoxOrigin = 'HKG';
+            let currentBoxDest = 'TBN';
+            let currentBoxPieces = null;
+            let currentBoxWeight = null;
+            let goodsList = [];
+            let isAccepted = false;
+            let boxDateTime = '-';
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+
+                if (line === 'Origin' && i + 1 < lines.length) {
+                    let v = lines[i+1];
+                    if (v && v.length === 3 && /^[A-Z]+$/.test(v)) currentBoxOrigin = v;
+                }
+                else if (line === 'Destination' && i + 1 < lines.length) {
+                    let v = lines[i+1];
+                    if (v && v.length === 3 && /^[A-Z]+$/.test(v) && v !== 'FSU') currentBoxDest = v;
+                }
+                else if (line === 'Pieces' && i + 1 < lines.length) {
+                    let pVal = parseInt(lines[i+1]);
+                    // 防呆：如果是下一張單的前綴 (如 235)，長度會是 3 但下面緊接 8 位，或者是直接 > 9999，在此過濾
+                    if (!isNaN(pVal) && pVal >= 0 && lines[i+1].length < 5) {
+                        currentBoxPieces = pVal;
+                    }
+                }
+                else if (line === 'Weight' && i + 1 < lines.length) {
+                    let wVal = parseFloat(lines[i+1]);
+                    if (!isNaN(wVal) && wVal >= 0 && lines[i+1].length < 9) {
+                        currentBoxWeight = wVal;
+                    }
+                }
+                else if (line === 'Nature of Goods' && i + 1 < lines.length) {
+                    let nVal = lines[i+1];
+                    if (nVal && nVal !== 'SHC' && nVal !== 'STATUS INFORMATION' && !/^\d{3}/.test(nVal)) {
+                        goodsList.push(nVal);
+                    }
+                }
+
+                if (line === 'Accepted' || line === 'RCS') {
+                    isAccepted = true;
+                }
+
+                let dtMatch = line.match(/\d{2}[A-Za-z]{3}\d{4}\s+\d{2}:\d{2}/);
+                if (dtMatch) boxDateTime = dtMatch[0];
+            }
+
+            // 【智慧多行聚合】：如果這個單號之前存在（可能是 Invalid 單或者同單號的分拆行）
+            if (parsedTrackingMap[blockAWB]) {
+                let existing = parsedTrackingMap[blockAWB];
+                
+                // 如果先前是無效單，現在有貨了，直接徹底覆蓋洗白
+                if (existing.status === 'Invalid') {
+                    existing.origin = currentBoxOrigin;
+                    existing.destination = currentBoxDest;
+                    existing.pieces = currentBoxPieces !== null ? currentBoxPieces : 0;
+                    existing.weight = currentBoxWeight !== null ? currentBoxWeight : 0.0;
+                    existing.natureOfGoods = goodsList.length > 0 ? goodsList.join(' / ') : '(空白)';
+                    existing.status = isAccepted ? 'Accepted' : 'Pending';
+                    existing.fsu = isAccepted ? 'RCS' : 'N/A';
+                    existing.dateTime = boxDateTime;
+                } else {
+                    // 同一張單有多個狀態行（例如 235-97873974）進行智慧疊加
+                    if (currentBoxDest !== 'TBN' && currentBoxDest !== 'N/A') existing.destination = currentBoxDest;
+                    if (currentBoxPieces !== null && currentBoxPieces > 0) existing.pieces = currentBoxPieces;
+                    if (currentBoxWeight !== null && currentBoxWeight > 0) existing.weight = currentBoxWeight;
+                    
+                    // 合併不同的貨物描述
+                    goodsList.forEach(g => {
+                        if (existing.natureOfGoods.indexOf(g) === -1) {
+                            if (existing.natureOfGoods === '(空白 / 未進倉)') { existing.natureOfGoods = g; }
+                            else { existing.natureOfGoods += ' + ' + g; }
+                        }
+                    });
+
+                    // 只要其中有一行狀態成功，整張提單就是 Accepted 
+                    if (isAccepted) {
+                        existing.status = 'Accepted';
+                        existing.fsu = 'RCS';
+                    }
+                    if (boxDateTime !== '-') existing.dateTime = boxDateTime;
+                }
+            } else {
+                // 全新提單
+                parsedTrackingMap[blockAWB] = {
+                    awb: blockAWB,
+                    origin: currentBoxOrigin,
+                    destination: currentBoxDest,
+                    pieces: currentBoxPieces !== null ? currentBoxPieces : 0,
+                    weight: currentBoxWeight !== null ? currentBoxWeight : 0.0,
+                    natureOfGoods: goodsList.length > 0 ? goodsList.join(' / ') : '(空白 / 未進倉)',
+                    fsu: isAccepted ? 'RCS' : 'N/A',
+                    status: isAccepted ? 'Accepted' : 'Pending',
+                    dateTime: boxDateTime
+                };
+            }
+        });
+
+        if (Object.keys(parsedTrackingMap).length === 0) {
+            alert('解析失敗！請確保貼上了合法的 AAT 原始數據內容。');
+            return;
+        }
+
+        renderDashboardAndTable();
+    }
+
+    function renderDashboardAndTable() {
+        let items = Object.values(parsedTrackingMap);
+        let totalAWB = items.length;
+        let acceptedCount = 0;
+        let pendingCount = 0;
+        let invalidCount = 0;
+        let totalPieces = 0;
+        let totalWeight = 0.0;
+
+        if (tableInstance) { tableInstance.destroy(); }
+        $('#trackingTable tbody').empty();
+
+        items.forEach(item => {
+            let statusBadge = '';
+            if (item.status === 'Accepted') {
+                acceptedCount++;
+                statusBadge = `<span class="badge badge-accepted">Accepted</span>`;
+            } else if (item.status === 'Invalid') {
+                invalidCount++;
+                statusBadge = `<span class="badge badge-invalid">Invalid / 未交貨</span>`;
+            } else {
+                pendingCount++;
+                statusBadge = `<span class="badge badge-pending">Pending</span>`;
+            }
+
+            totalPieces += (item.pieces || 0);
+            totalWeight += (item.weight || 0.0);
+
+            let rowHtml = `
+                <tr>
+                    <td><strong>${item.awb}</strong></td>
+                    <td>${item.origin}</td>
+                    <td>${item.destination}</td>
+                    <td>${item.pieces}</td>
+                    <td>${item.weight.toFixed(1)}</td>
+                    <td>${item.natureOfGoods}</td>
+                    <td>${item.fsu}</td>
+                    <td>${statusBadge}</td>
+                    <td>${item.dateTime}</td>
+                </tr>
+            `;
+            $('#trackingTable tbody').append(rowHtml);
+        });
+
+        $('#statTotalAWB').text(totalAWB);
+        $('#statAccepted').text(acceptedCount);
+        $('#statPending').text(pendingCount);
+        $('#statInvalid').text(invalidCount);
+        $('#statTotalPieces').text(totalPieces);
+        $('#statTotalWeight').text(totalWeight.toFixed(1));
+
+        $('#statsDashboard').show();
+        $('#tablePanel').show();
+        $('#exportExcelBtn').show();
+
+        tableInstance = $('#trackingTable').DataTable({
+            scrollX: true,
+            pageLength: 25,
+            order: [[7, 'desc'], [0, 'asc']], 
+            language: {
+                search: "搜尋：",
+                lengthMenu: "每頁顯示 _MENU_ 筆",
+                info: "共 _TOTAL_ 筆紀錄",
+                paginate: { previous: "上一頁", next: "下一頁" }
+            }
+        });
+    }
+
+    function filterStatus() {
+        let val = $('#statusFilter').val();
+        if (tableInstance) { tableInstance.column(7).search(val).draw(); }
+    }
+
+    function clearTracking() {
+        $('#rawInput').val('');
+        $('#statsDashboard').hide();
+        $('#tablePanel').hide();
+        $('#exportExcelBtn').hide();
+        if (tableInstance) { tableInstance.destroy(); tableInstance = null; }
+        $('#trackingTable tbody').empty();
+        parsedTrackingMap = {};
+    }
+
+    // TAB 2 分組功能
+    function processGrouping() {
+        const text = $('#groupInput').val().trim();
+        if (!text) { return; }
+        
+        let rawMatches = text.match(/\b\d{3}[- ]?\d{8}\b/g);
+        if (!rawMatches || rawMatches.length === 0) { alert('未識別到有效的提單號碼！'); return; }
+
+        let formattedAWBs = rawMatches.map(raw => formatAWBStr(raw));
+        let uniqueAWBs = [...new Set(formattedAWBs)];
+        
+        $('#groupTotalCount').text(uniqueAWBs.length);
+
+        currentGroupedRows = [];
+        for (let i = 0; i < uniqueAWBs.length; i += 10) {
+            currentGroupedRows.push(uniqueAWBs.slice(i, i + 10).join(' ')); 
+        }
+
+        let container = $('#groupResultsContainer').empty();
+        currentGroupedRows.forEach((rowStr, index) => {
+            container.append(`
+                <div class="group-row">
+                    <span class="group-text" id="group-text-${index}">${rowStr}</span>
+                    <button class="btn-copy" onclick="copyRowText(${index})">Copy</button>
+                </div>
+            `);
+        });
+        $('#groupResultPanel').show();
+        $('#exportGroupExcelBtn').show();
+    }
+
+    function copyRowText(index) {
+        let textToCopy = $(`#group-text-${index}`).text();
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            let btn = $(`#group-text-${index}`).next('button');
+            btn.text('Copied!').css('background-color', 'var(--success-color)').css('color', 'white');
+            setTimeout(() => { btn.text('Copy').css('background-color', '#edf2f7').css('color', '#4a5568'); }, 1000);
+        });
+    }
+
+    function clearGrouping() {
+        $('#groupInput').val('');
+        $('#groupResultsContainer').empty();
+        $('#groupResultPanel').hide();
+        $('#exportGroupExcelBtn').hide();
+    }
+
+    function exportTrackingToExcel() {
+        let items = Object.values(parsedTrackingMap);
+        let dataForExcel = items.map(item => ({
+            'AWB': item.awb, 'Origin': item.origin, 'Destination': item.destination,
+            'Pieces': item.pieces, 'Weight': item.weight, 'Nature Of Goods': item.natureOfGoods,
+            'FSU': item.fsu, 'Status': item.status, 'Date Time': item.dateTime
+        }));
+        let worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+        let workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Summary");
+        XLSX.writeFile(workbook, `AAT_Tracking_Report.xlsx`);
+    }
+
+    function exportGroupToExcel() {
+        let excelRows = currentGroupedRows.map((rowStr, idx) => ({ 'Row': idx + 1, 'AWB Group': rowStr }));
+        let worksheet = XLSX.utils.json_to_sheet(excelRows);
+        let workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Groups");
+        XLSX.writeFile(workbook, `AWB_Groups.xlsx`);
+    }
+</script>
+</body>
+</html>
