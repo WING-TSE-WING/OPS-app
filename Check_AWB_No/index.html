@@ -2,124 +2,402 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>AWB 智能對照與異常分析工具 (v11 完整版)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWB 智能對照與異常分析工具 (v16 Fullscreen Edition)</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f9; color: #333; }
-.container { max-width: 1200px; margin: 0 auto; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-.card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
-.drop-zone { border: 3px dashed #cbd5e1; padding: 20px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: bold; margin-bottom: 15px; }
-.drop-zone.dragover { border-color: #0078D7; background: #eef6ff; color: #0078D7; }
-.status-msg { margin-top: 10px; font-weight: bold; font-size: 14px; color: #1e293b; }
-textarea { width: 100%; height: 120px; box-sizing: border-box; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace; font-size: 13px; margin-top: 10px; background-color: #f8fafc; }
-.paste-input { background-color: #fff !important; border: 2px dashed #0078D7; height: 120px; }
-.action-bar { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; text-align: center; }
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #10b981;
+    --success-hover: #059669;
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --warning: #f59e0b;
+    --warning-hover: #d97706;
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+}
 
-button { padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: 0.1s; margin: 5px; }
-.btn-template { background-color: #0078D7; color: white; }
-.btn-template:hover { background-color: #005a9e; }
-.btn-download { background-color: #d93025; color: white; padding: 12px 24px; font-size: 15px; }
-.btn-download:hover { background-color: #b3241b; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+    padding: 20px; 
+    background-color: #f1f5f9; 
+    color: var(--slate-800);
+    line-height: 1.5;
+    transition: padding 0.2s ease;
+}
+
+.container { max-width: 1720px; margin: 0 auto; transition: max-width 0.2s ease; }
+
+/* 頂部導航抬頭 */
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    padding: 16px 24px;
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+.header-info h2 { margin: 0 0 4px 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+.header-info p { margin: 0; color: #94a3b8; font-size: 13px; }
+
+/* 核心佈局：左右完美拆分 */
+.split-layout {
+    display: grid;
+    grid-template-columns: 460px 1fr;
+    gap: 20px;
+    align-items: start;
+    transition: all 0.2s ease;
+}
+
+/* 左側控制群組 */
+.left-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 右側結果群組 */
+.right-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 卡片排版 */
+.card { 
+    background: #fff; 
+    padding: 20px; 
+    border-radius: 12px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--slate-200); 
+    box-sizing: border-box;
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--slate-700);
+    border-bottom: 1px solid var(--slate-100);
+    padding-bottom: 8px;
+}
+.title-left { display: flex; align-items: center; }
+.step-badge {
+    background-color: var(--primary);
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* 拖曳區 */
+.drop-zone { 
+    border: 2px dashed #cbd5e1; 
+    padding: 14px; 
+    text-align: center; 
+    color: #64748b; 
+    background: var(--slate-50); 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+    font-weight: 500; 
+    font-size: 13px;
+}
+.drop-zone:hover { border-color: var(--primary); background: #eff6ff; color: var(--primary); }
+.drop-zone.dragover { border-color: var(--primary); background: #eff6ff; color: var(--primary); transform: scale(0.98); }
+
+.status-msg { 
+    margin-top: 8px; 
+    font-weight: 600; 
+    font-size: 12px; 
+    color: var(--slate-600);
+    padding: 6px 12px;
+    background-color: var(--slate-100);
+    border-radius: 6px;
+    display: block;
+}
+
+textarea { 
+    width: 100%; 
+    height: 100px; 
+    box-sizing: border-box; 
+    padding: 10px; 
+    border: 1px solid var(--slate-200); 
+    border-radius: 6px; 
+    font-family: ui-monospace, Consolas, monospace; 
+    font-size: 12px; 
+    margin-top: 8px; 
+    background-color: var(--slate-50); 
+    color: var(--slate-700);
+    resize: vertical;
+}
+.paste-input { background-color: #fff !important; border: 2px dashed var(--primary); height: 120px; }
+
+/* 欄位配置中心 */
+.control-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.search-box { width: 100%; max-width: 200px; padding: 6px 10px; border: 1px solid var(--slate-200); border-radius: 6px; font-size: 12px; }
+.search-box:focus { outline: none; border-color: var(--primary); }
+.btn-group { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.checkbox-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+    gap: 6px; 
+    margin-top: 10px; 
+    padding: 10px; 
+    background: var(--slate-50); 
+    border-radius: 8px; 
+    max-height: 200px; 
+    overflow-y: auto; 
+    border: 1px solid var(--slate-200);
+}
+.checkbox-item { 
+    display: flex; align-items: center; font-size: 11px; cursor: pointer; padding: 5px 8px;
+    background: white; border: 1px solid var(--slate-200); border-radius: 6px; user-select: none; transition: all 0.15s;
+}
+.checkbox-item:hover { background: var(--slate-100); border-color: #cbd5e1; }
+.checkbox-item input { margin-right: 6px; width: 13px; height: 13px; }
+
+/* 按鈕樣式 */
+button { padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.btn-template { background-color: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); }
+.btn-template:hover { background-color: rgba(255,255,255,0.25); }
+.btn-mini { background-color: white; color: var(--slate-700); border: 1px solid var(--slate-200); }
+.btn-mini:hover { background-color: var(--slate-100); }
+.btn-save { background-color: #4f46e5; color: white; }
+.btn-save:hover { background-color: #4338ca; }
+
+/* 右側控制整合面板 */
+.action-bar-card { 
+    background: #fff; padding: 14px 20px; border-radius: 12px; border: 1px solid var(--slate-200); 
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+}
+.btn-download { background-color: var(--danger); color: white; padding: 8px 16px; font-size: 13px; }
+.btn-download:hover { background-color: var(--danger-hover); }
 .btn-download:disabled, .btn-copy:disabled { background-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
-.btn-copy { background-color: #f59e0b; color: white; }
-.btn-copy:hover { background-color: #d97706; }
-.btn-copy-success { background-color: #10b981; color: white; }
-.btn-copy-success:hover { background-color: #059669; }
-.table-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; white-space: nowrap; }
-th { background-color: #f1f5f9; color: #334155; }
-.status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; }
-.bg-found { background-color: #e6f4ea; color: #137333; }
-.bg-missing { background-color: #fce8e6; color: #c5221f; }
+.btn-copy { background-color: var(--warning); color: white; }
+.btn-copy:hover { background-color: var(--warning-hover); }
+.btn-copy-success { background-color: var(--success); color: white; }
+.btn-copy-success:hover { background-color: var(--success-hover); }
+
+/* 右側：資料預覽大表格區 */
+.table-container { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid var(--slate-200); min-height: 500px; transition: all 0.2s ease; }
+.table-title-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--slate-100); padding-bottom: 8px; }
+.table-title-area h3 { margin: 0; font-size: 15px; color: var(--slate-700); }
+
+.table-wrapper { overflow-x: auto; max-height: 680px; overflow-y: auto; position: relative; border-radius: 6px; border: 1px solid var(--slate-200); transition: max-height 0.2s ease; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { border: 1px solid var(--slate-200); padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+th { background-color: var(--slate-100); color: var(--slate-700); font-weight: 600; position: sticky; top: 0; z-index: 10; user-select: none; }
+
+/* 專注全螢幕模式的 CSS 強制覆蓋樣式 */
+body.fullscreen-mode {
+    padding: 10px;
+}
+body.fullscreen-mode .container {
+    max-width: 100% !important;
+}
+body.fullscreen-mode .header-section,
+body.fullscreen-mode .left-workspace,
+body.fullscreen-mode .action-bar-card {
+    display: none !important; /* 隱藏其他不相干區塊 */
+}
+body.fullscreen-mode .split-layout {
+    grid-template-columns: 1fr !important; /* 讓右側獨佔滿版 */
+}
+body.fullscreen-mode .table-wrapper {
+    max-height: calc(100vh - 100px) !important; /* 動態計算填滿瀏覽器高度 */
+}
+body.fullscreen-mode .btn-fullscreen {
+    background-color: var(--slate-800) !important;
+    color: white !important;
+}
+
+/* 表頭互動篩選與排序 */
+.th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.th-label { cursor: pointer; flex-grow: 1; display: flex; align-items: center; gap: 4px; }
+.th-label:hover { color: var(--primary); }
+.sort-icon { font-size: 11px; color: #94a3b8; }
+
+.filter-trigger { cursor: pointer; padding: 2px 4px; border-radius: 3px; color: #94a3b8; transition: all 0.15s; }
+.filter-trigger:hover, .filter-trigger.active { background-color: var(--slate-200); color: var(--slate-800); }
+
+/* Excel 下拉選單 */
+.filter-dropdown {
+    position: absolute; background: white; border: 1px solid var(--slate-300); border-radius: 6px;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); max-height: 250px; overflow-y: auto; min-width: 180px;
+    z-index: 150; display: none; padding: 8px; box-sizing: border-box;
+}
+.filter-dropdown-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+.filter-dropdown-item:hover { background-color: var(--slate-100); }
+.filter-dropdown-item input { width: 13px; height: 13px; margin: 0; }
+.filter-actions { display: flex; justify-content: space-between; border-top: 1px solid var(--slate-100); margin-top: 6px; padding-top: 6px; }
+
+tr:nth-child(even) { background-color: var(--slate-50); }
+tr:hover { background-color: #f1f5f9; }
+.dense-table th, .dense-table td { padding: 5px 6px; font-size: 12px; }
+
+.status-badge { padding: 2px 6px; border-radius: 50px; font-weight: 700; font-size: 11px; display: inline-block; }
+.bg-found { background-color: #d1fae5; color: #065f46; }
+.bg-missing { background-color: #fee2e2; color: #991b1b; }
+.email-btn { background-color: #f97316; color: white; padding: 2px 6px; font-size: 11px; border-radius: 4px; text-decoration: none; font-weight: bold; }
 </style>
 </head>
 
 <body>
 
 <div class="container">
-    <h2>Word AWB 對照與異常下載工具 (v11 完整功能修正版)</h2>
-    <p style="color: #64748b; font-size: 14px;">💡 <b>更新要點：</b> 即使您貼上資料時沒有複製表頭，系統也會<b>自動為您補上綠色標準表頭</b>。另外新增了模板下載、一鍵複製未Link/已Link單號功能。</p>
-
-    <div style="margin-bottom: 15px;">
-        <button class="btn-template" onclick="downloadTemplate()">📋 📥 下載標準對照表 Excel 模板</button>
+    <div class="header-section">
+        <div class="header-info">
+            <h2>Word AWB 對照與異常下載工具</h2>
+            <p>v16 Fullscreen Edition • 獨立雙欄作業，支援一鍵全螢幕專注檢視比對清單</p>
+        </div>
     </div>
 
-    <div class="grid-2">
-        <div class="card">
-            <h3>📂 1. 請放入 Word (.docx) 檔案</h3>
-            <div id="wordDropZone" class="drop-zone">
-                把 Word 檔案拖到這裡 或 點擊選取檔案
-                <input type="file" accept=".docx" id="wordFileInput" style="display:none;">
-            </div>
-            <div id="wordStatus" class="status-msg">💡 尚未讀取 Word 檔案</div>
-            <textarea id="wordOutput" readonly placeholder="Word 內含的 AWB 清單..."></textarea>
-        </div>
-
-        <div class="card">
-            <h3>📊 2. 請放入或「直接貼上」對照表資料</h3>
-            <div id="excelDropZone" class="drop-zone">
-                方案 A：把 Excel 檔案拖到這裡或選取
-                <input type="file" accept=".xlsx, .xls" id="excelFileInput" style="display:none;">
-            </div>
+    <div class="split-layout">
+        
+        <div class="left-workspace">
             
-            <div style="font-weight: bold; margin: 5px 0; color: #0078D7;">或者 方案 B：直接在下方框內【按 Ctrl+V 貼上數據】</div>
-            <textarea id="excelPasteArea" class="paste-input" placeholder="選取 Excel 資料列複製（有無複製到綠色標頭皆可），點擊此處並貼上..." oninput="handleExcelPaste()"></textarea>
+            <div class="card">
+                <div class="card-title">
+                    <div class="title-left"><span class="step-badge">1</span> Word 檔案來源 (.docx)</div>
+                </div>
+                <div id="wordDropZone" class="drop-zone">
+                    拖曳 <b>Word 檔案</b> 至此或點擊選取
+                    <input type="file" accept=".docx" id="wordFileInput" style="display:none;">
+                </div>
+                <div id="wordStatus" class="status-msg">💡 尚未讀取 Word 檔案</div>
+                <textarea id="wordOutput" readonly placeholder="擷取到的單號清單..."></textarea>
+            </div>
 
-            <div id="excelStatus" class="status-msg">💡 尚未讀取 Excel 數據</div>
-            <textarea id="excelOutput" readonly placeholder="辨識出的 MAWB 號碼..."></textarea>
+            <div class="card">
+                <div class="card-title">
+                    <div class="title-left"><span class="step-badge">2</span> Excel 對照資料來源</div>
+                    <button class="btn-mini" style="background-color: var(--primary); color: white; padding: 4px 8px;" onclick="downloadTemplate()">📋 下載 Excel 模板</button>
+                </div>
+                <div id="excelDropZone" class="drop-zone">
+                    方案 A：拖曳 <b>Excel 檔案</b> 至此
+                    <input type="file" accept=".xlsx, .xls" id="excelFileInput" style="display:none;">
+                </div>
+                <div style="font-weight: 700; margin: 8px 0 4px 0; color: var(--primary); font-size: 11px;">或者 方案 B：直接在下方【按 Ctrl+V 貼上數據】</div>
+                <textarea id="excelPasteArea" class="paste-input" placeholder="複製 Excel 欄位（含第一行表頭）並在此處貼上..." oninput="handleExcelPaste()"></textarea>
+                <div id="excelStatus" class="status-msg">💡 尚未讀取 Excel 數據</div>
+                <textarea id="excelOutput" readonly placeholder="系統辨識出的 MAWB 號碼..."></textarea>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <div class="title-left"><span class="step-badge">3</span> 欄位顯示選取配置中心</div>
+                </div>
+                <div class="control-header">
+                    <input type="text" id="columnSearch" class="search-box" placeholder="🔍 搜尋欄位..." oninput="filterColumns()">
+                    <div class="btn-group">
+                        <button class="btn-mini" onclick="checkAllColumns(true)">全選</button>
+                        <button class="btn-mini" onclick="checkAllColumns(false)">清空</button>
+                    </div>
+                </div>
+                <div style="background-color: var(--slate-100); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;">
+                    <div class="btn-group">
+                        <button class="btn-mini" style="font-size:11px;" onclick="applyQuickCategory('all')">全欄位</button>
+                        <button class="btn-mini" style="font-size:11px;" onclick="applyQuickCategory('mawb')">提單欄</button>
+                        <button class="btn-mini" style="font-size:11px;" onclick="applyQuickCategory('date')">日期欄</button>
+                        <button class="btn-mini" style="font-size:11px;" onclick="applyQuickCategory('flight')">航班欄</button>
+                    </div>
+                </div>
+                <div id="columnSelector" class="checkbox-grid">
+                    <div style="color: #94a3b8; font-size: 12px; padding: 8px; grid-column: 1/-1; text-align: center;">⚠️ 請先貼上數據以載入欄位</div>
+                </div>
+                <div style="margin-top: 10px; text-align: right; display: flex; justify-content: space-between; align-items: center;">
+                    <button class="btn-mini btn-save" onclick="saveColumnConfig()">💾 記住配置</button>
+                    <button class="btn-mini" style="background-color: var(--slate-800); color: white; padding: 6px 16px;" onclick="updatePreviewAndRerender()">🔄 應用並重新對照</button>
+                </div>
+            </div>
+
         </div>
-    </div>
 
-    <div class="action-bar">
-        <button id="downloadBtn" class="btn-download" onclick="exportMissingExcel()" disabled>📥 一鍵下載【未 Link】的 11 欄異常 Excel 報表</button>
-        <br><br>
-        <button id="copyMissingBtn" class="btn-copy" onclick="copyMissingAwbs()" disabled>📋 複製【沒有（未Link）】的提單號</button>
-        <button id="copyFoundBtn" class="btn-copy-success" onclick="copyFoundAwbs()" disabled>📋 複製【已有（已Link）】的提單號</button>
-        <div id="summaryText" style="margin-top: 10px; font-weight: bold; color: #475569;"></div>
-    </div>
+        <div class="right-workspace">
+            
+            <div class="card action-bar-card">
+                <div id="summaryText" style="font-weight: 700; color: var(--slate-700); font-size: 13px;">📊 比對狀態：等待兩方資料載入...</div>
+                <div class="btn-group">
+                    <button id="copyMissingBtn" class="btn-copy" onclick="copyMissingAwbs()" disabled>📋 複製未 Link</button>
+                    <button id="copyFoundBtn" class="btn-copy-success" onclick="copyFoundAwbs()" disabled>📋 複製已 Link</button>
+                    <button id="downloadBtn" class="btn-download" onclick="exportMissingExcel()" disabled>📥 下載未 Link 異常 Excel</button>
+                </div>
+            </div>
 
-    <div class="table-container" id="resultPreviewCard" style="display: none;">
-        <h3>🔍 即時比對結果預覽 (自動強制補齊 11 個核心監控表頭)</h3>
-        <table>
-            <thead>
-                <tr id="tableHeader">
-                    <th>功能操作</th>
-                    <th>Link 狀態</th>
-                </tr>
-            </thead>
-            <tbody id="resultBody"></tbody>
-        </table>
+            <div class="table-container" id="resultPreviewCard" style="display: none;">
+                <div class="table-title-area">
+                    <h3 id="previewTitleText">🔍 即時數據比對清單 (內建表頭排序與下式選單篩選)</h3>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-mini btn-fullscreen" id="fullscreenToggleBtn" style="background-color: #4f46e5; color: white; border: 1px solid #4338ca; padding: 5px 12px;" onclick="toggleFullscreenMode()">
+                            🔲 全頁面滿版檢視
+                        </button>
+                        <span style="border-left: 1px solid var(--slate-300); height: 16px; margin: 0 4px;"></span>
+                        <button class="btn-mini" style="padding: 4px 8px;" onclick="toggleTableDense(false)">標準</button>
+                        <button class="btn-mini" style="padding: 4px 8px;" onclick="toggleTableDense(true)">緊湊</button>
+                        <button class="btn-mini" style="color: var(--danger); padding: 4px 8px;" onclick="resetAllFiltersAndSorts()">❌ 重設篩選排序</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="previewTable">
+                        <thead>
+                            <tr id="tableHeader">
+                                <th>功能操作</th>
+                                <th>Link 狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 </div>
 
+<div id="filterDropdownContainer" class="filter-dropdown"></div>
+
 <script>
 let wordAwbSet = new Set();
-let excelRowsData = [];
+let excelRowsData = [];    
+let displayRowsData = [];  
+let dynamicHeaders = [];
+let selectedColumns = [];
+let mawbFieldName = "";
 
-// 固定導出與核對的 11 個核心標準監控欄位
-const targetFields = [
-    "Responsible Party/\r\n異常報告", 
-    "MAWB", 
-    "Flight", 
-    "FlightRouting", 
-    "运力服务商编码", 
-    "起飛時間", 
-    "ISSUING\r\nAGENT", 
-    "ISSUING AGENT\r\nRA#", 
-    "UTK\r\nPARTY", 
-    "UTK\r\nRA#", 
-    "交單方法"
-];
+let currentSort = { field: null, direction: 'none' }; 
+let activeFilters = {}; 
+
+const validMawbHeaders = ["MAWB", "MASTER AWB", "提單號", "運單號", "空運提單號"];
 
 function getCleanKey(str) {
     return String(str || "").replace(/[\r\n""'']/g, "").replace(/\s+/g, "").trim().toUpperCase();
 }
-const cleanTargetFields = targetFields.map(f => getCleanKey(f));
 
 const wordDropZone = document.getElementById("wordDropZone");
 const wordFileInput = document.getElementById("wordFileInput");
@@ -137,39 +415,57 @@ const summaryText = document.getElementById("summaryText");
 const resultPreviewCard = document.getElementById("resultPreviewCard");
 const tableHeader = document.getElementById("tableHeader");
 const resultBody = document.getElementById("resultBody");
+const columnSelector = document.getElementById("columnSelector");
+const columnSearch = document.getElementById("columnSearch");
+const previewTable = document.getElementById("previewTable");
+const filterDropdownContainer = document.getElementById("filterDropdownContainer");
+const fullscreenToggleBtn = document.getElementById("fullscreenToggleBtn");
 
 wordDropZone.addEventListener("click", () => wordFileInput.click());
 excelDropZone.addEventListener("click", () => excelFileInput.click());
 setupDragDropEffects(wordDropZone);
 setupDragDropEffects(excelDropZone);
 
-wordDropZone.addEventListener("drop", e => { e.preventDefault(); handleWordFile(e.dataTransfer.files[0]); });
+wordDropZone.addEventListener("drop", e => { e.preventDefault(); wordDropZone.classList.remove("dragover"); handleWordFile(e.dataTransfer.files[0]); });
 wordFileInput.addEventListener("change", e => { handleWordFile(e.target.files[0]); });
-excelDropZone.addEventListener("drop", e => { e.preventDefault(); handleExcelFile(e.dataTransfer.files[0]); });
+excelDropZone.addEventListener("drop", e => { e.preventDefault(); excelDropZone.classList.remove("dragover"); handleExcelFile(e.dataTransfer.files[0]); });
 excelFileInput.addEventListener("change", e => { handleExcelFile(e.target.files[0]); });
+
+document.addEventListener('click', function(e) {
+    if (!filterDropdownContainer.contains(e.target) && !e.target.classList.contains('filter-trigger')) {
+        filterDropdownContainer.style.display = 'none';
+    }
+});
 
 function setupDragDropEffects(zone) {
     zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
     zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
 }
 
-// 1. 下載 Excel 模板功能
-function downloadTemplate() {
-    // 建立一列只包含 11 個表頭的空白工作表
-    const headerRow = {};
-    targetFields.forEach(f => {
-        headerRow[f] = ""; 
-    });
-    const worksheet = XLSX.utils.json_to_sheet([headerRow], { header: targetFields });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "對照模板");
-    XLSX.writeFile(workbook, "AWB_11欄位標準對照模板.xlsx");
+/* 一鍵全螢幕 / 滿版切換核心功能 */
+function toggleFullscreenMode() {
+    const isFullscreen = document.body.classList.toggle("fullscreen-mode");
+    if (isFullscreen) {
+        fullscreenToggleBtn.innerHTML = "🔳 離開全頁面模式";
+        document.getElementById("previewTitleText").innerText = "🔍 即時數據比對清單 (全頁面滿版專注檢視中)";
+    } else {
+        fullscreenToggleBtn.innerHTML = "🔲 全頁面滿版檢視";
+        document.getElementById("previewTitleText").innerText = "🔍 即時數據比對清單 (內建表頭排序與下式選單篩選)";
+    }
 }
 
-// Word 解析
+function downloadTemplate() {
+    const demoHeaders = ["MAWB", "DATE", "Flight", "FlightRouting", "RCL是否已交貨站"];
+    const headerRow = {}; demoHeaders.forEach(f => { headerRow[f] = ""; });
+    const worksheet = XLSX.utils.json_to_sheet([headerRow], { header: demoHeaders });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "對照模板");
+    XLSX.writeFile(workbook, "AWB_標準對照模板.xlsx");
+}
+
 async function handleWordFile(file) {
-    if (!file || !file.name.endsWith(".docx")) { alert("請選擇 Word 檔案"); return; }
-    wordStatus.innerText = "⏳ 正在強力解析 Word 檔案內容...";
+    if (!file || !file.name.endsWith(".docx")) { alert("請選擇正確的 Word (.docx) 檔案"); return; }
+    wordStatus.innerText = "⏳ 正在解析 Word 檔案...";
     wordAwbSet.clear();
     try {
         const zip = await JSZip.loadAsync(file);
@@ -181,20 +477,19 @@ async function handleWordFile(file) {
         const resultArr = Array.from(wordAwbSet);
         if (resultArr.length > 0) {
             wordOutput.value = resultArr.join("\n");
-            wordStatus.style.color = "#137333";
-            wordStatus.innerText = `✅ 成功！強力擷取到 ${resultArr.length} 筆提單號碼。`;
+            wordStatus.style.color = "#065f46";
+            wordStatus.innerText = `✅ 成功！提取到 ${resultArr.length} 筆提單。`;
         } else {
-            wordOutput.value = "⚠️ 找不到任何 3碼-8碼 格式的單號。";
-            wordStatus.style.color = "#c5221f";
-            wordStatus.innerText = "⚠️ 讀取完成，但 Word 內找不到任何提單號碼。";
+            wordOutput.value = "⚠️ 未辨識到 3碼-8碼 單號。";
+            wordStatus.style.color = "#991b1b";
+            wordStatus.innerText = "⚠️ 讀取完成，但找不到提單號碼。";
         }
-        checkAndRunComparison();
+        applyFilterAndSortAndRender();
     } catch (err) {
         wordStatus.innerText = "❌ 讀取 Word 檔案失敗。";
     }
 }
 
-// Excel 檔案讀取
 function handleExcelFile(file) {
     if (!file) return;
     excelStatus.innerText = "⏳ 正在讀取 Excel 檔案...";
@@ -206,7 +501,7 @@ function handleExcelFile(file) {
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-            if (rawData.length === 0) { alert("⚠️ 檔案內沒有資料"); return; }
+            if (rawData.length === 0) { alert("檔案內沒有數據"); return; }
             parseTwoDimensionalArray(rawData);
         } catch (err) {
             alert("❌ 讀取 Excel 檔案錯誤。");
@@ -215,234 +510,344 @@ function handleExcelFile(file) {
     reader.readAsArrayBuffer(file);
 }
 
-// 貼上文字解析
 function handleExcelPaste() {
     let rawText = excelPasteArea.value;
     if (!rawText.trim()) return;
 
-    let rows = [];
-    let currentRow = [];
-    let currentCell = '';
-    let inQuotes = false;
-
+    let rows = []; let currentRow = []; let currentCell = ''; let inQuotes = false;
     for (let i = 0; i < rawText.length; i++) {
-        let c = rawText[i];
-        let next = rawText[i+1];
-
-        if (c === '"') {
-            inQuotes = !inQuotes;
-        } else if (c === '\t' && !inQuotes) {
-            currentRow.push(currentCell);
-            currentCell = '';
-        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+        let c = rawText[i]; let next = rawText[i+1];
+        if (c === '"') { inQuotes = !inQuotes; } 
+        else if (c === '\t' && !inQuotes) { currentRow.push(currentCell); currentCell = ''; } 
+        else if ((c === '\r' || c === '\n') && !inQuotes) {
             if (c === '\r' && next === '\n') { i++; }
-            currentRow.push(currentCell);
-            rows.push(currentRow);
-            currentRow = [];
-            currentCell = '';
-        } else {
-            currentCell += c;
-        }
+            currentRow.push(currentCell); rows.push(currentRow); currentRow = []; currentCell = '';
+        } else { currentCell += c; }
     }
-    if (currentCell || currentRow.length > 0) {
-        currentRow.push(currentCell);
-        rows.push(currentRow);
-    }
-
+    if (currentCell || currentRow.length > 0) { currentRow.push(currentCell); rows.push(currentRow); }
     parseTwoDimensionalArray(rows);
 }
 
-// 核心對齊引擎（修復：強制讓無表頭數據對應到標準表頭）
 function parseTwoDimensionalArray(matrix) {
     if (matrix.length === 0) return;
-
     let detectedHeaderIdx = -1;
-    let maxMatches = 0;
+    let foundFieldName = "";
 
     for (let i = 0; i < Math.min(5, matrix.length); i++) {
-        let matches = matrix[i].filter(cell => {
-            let cleanCell = getCleanKey(cell);
-            return cleanTargetFields.some(f => cleanCell.includes(f) || f.includes(cleanCell));
-        }).length;
-        if (matches > maxMatches && matches >= 2) { 
-            maxMatches = matches;
-            detectedHeaderIdx = i;
-        }
-    }
-
-    let headerMap = {};
-    let startDataRowIdx = 0;
-
-    if (detectedHeaderIdx !== -1) {
-        // 【模式一：有表頭】
-        let headerCells = matrix[detectedHeaderIdx];
-        targetFields.forEach((field, fIdx) => {
-            let targetClean = cleanTargetFields[fIdx];
-            let foundIdx = headerCells.findIndex(cell => {
-                let cellClean = getCleanKey(cell);
-                return cellClean === targetClean || cellClean.includes(targetClean) || targetClean.includes(cellClean);
-            });
-            if (foundIdx !== -1) headerMap[field] = foundIdx;
-        });
-        startDataRowIdx = detectedHeaderIdx + 1;
-    } else {
-        // 【模式二：盲抓無表頭】尋找提單格式列強行進行 Offset 定位
-        let sampleMawbColIdx = -1;
-        for (let r = 0; r < matrix.length; r++) {
-            let idx = matrix[r].findIndex(c => /[0-9]{3}-[0-9]{8}/.test(c));
-            if (idx !== -1) {
-                sampleMawbColIdx = idx;
-                break;
+        for (let j = 0; j < matrix[i].length; j++) {
+            let cellClean = getCleanKey(matrix[i][j]);
+            if (validMawbHeaders.includes(cellClean)) {
+                detectedHeaderIdx = i; foundFieldName = matrix[i][j]; break;
             }
         }
-
-        if (sampleMawbColIdx !== -1) {
-            headerMap["Responsible Party/\r\n異常報告"] = sampleMawbColIdx - 1; // 修正偏移：MAWB 前面一欄就是 Responsible Party
-            headerMap["MAWB"] = sampleMawbColIdx;
-            headerMap["Flight"] = sampleMawbColIdx + 1;
-            headerMap["FlightRouting"] = sampleMawbColIdx + 2;
-            headerMap["运力服务商编码"] = sampleMawbColIdx + 3;
-            headerMap["起飛時間"] = sampleMawbColIdx + 4;
-            headerMap["ISSUING\r\nAGENT"] = sampleMawbColIdx + 5;
-            headerMap["ISSUING AGENT\r\nRA#"] = sampleMawbColIdx + 6;
-            headerMap["UTK\r\nPARTY"] = sampleMawbColIdx + 7;
-            headerMap["UTK\r\nRA#"] = sampleMawbColIdx + 8;
-            headerMap["交單方法"] = sampleMawbColIdx + 9;
-        }
-        startDataRowIdx = 0; 
+        if (detectedHeaderIdx !== -1) break;
     }
 
+    if (detectedHeaderIdx === -1) {
+        excelStatus.style.color = "#991b1b";
+        excelStatus.innerHTML = `❌ 找不到 MAWB 主標頭欄位`;
+        return;
+    }
+
+    mawbFieldName = foundFieldName;
+    dynamicHeaders = matrix[detectedHeaderIdx].map(h => String(h || "").trim()).filter(h => h !== "");
+    
+    let headerMap = {};
+    matrix[detectedHeaderIdx].forEach((h, idx) => { if (h) headerMap[String(h).trim()] = idx; });
+
     excelRowsData = [];
-    for (let i = startDataRowIdx; i < matrix.length; i++) {
+    for (let i = detectedHeaderIdx + 1; i < matrix.length; i++) {
         let rowCells = matrix[i];
         if (rowCells.length <= 1 && !rowCells[0]) continue;
 
-        let standardRow = {};
-        // 核心修正：不論來源如何，這邊一律打包成標準 targetFields 的 Key
-        targetFields.forEach(field => {
+        let dynamicRow = {};
+        dynamicHeaders.forEach(field => {
             let colIdx = headerMap[field];
-            standardRow[field] = (colIdx !== undefined && rowCells[colIdx] !== undefined) ? rowCells[colIdx].trim() : "";
+            dynamicRow[field] = (colIdx !== undefined && rowCells[colIdx] !== undefined) ? String(rowCells[colIdx]).trim() : "";
         });
 
-        if (!standardRow["MAWB"]) {
+        if (!dynamicRow[mawbFieldName]) {
             let rowStr = rowCells.join(" ");
             let match = rowStr.match(/[0-9]{3}-[0-9]{8}/);
-            if (match) standardRow["MAWB"] = match[0];
+            if (match) dynamicRow[mawbFieldName] = match[0];
         }
-
-        if (standardRow["MAWB"]) {
-            excelRowsData.push(standardRow);
-        }
+        if (dynamicRow[mawbFieldName]) excelRowsData.push(dynamicRow);
     }
 
-    let detectedAwbs = excelRowsData.map(r => r["MAWB"]);
-    excelOutput.value = detectedAwbs.join("\n");
-    excelStatus.style.color = "#137333";
-    excelStatus.innerText = `✅ 成功！已進入智能對齊，強制生成 11 欄標準表頭，共載入 ${excelRowsData.length} 筆提單。`;
+    selectedColumns = [...dynamicHeaders];
+    const storedConfig = localStorage.getItem("awb_tool_selected_columns");
+    if (storedConfig) {
+        try {
+            let parsed = JSON.parse(storedConfig);
+            let validParsed = parsed.filter(c => dynamicHeaders.includes(c));
+            if (validParsed.length > 0) selectedColumns = validParsed;
+        } catch(e){}
+    }
 
-    checkAndRunComparison();
+    resetAllFiltersAndSorts();
+    filterColumns();
+    
+    excelOutput.value = excelRowsData.map(r => r[mawbFieldName]).join("\n");
+    excelStatus.style.color = "#065f46";
+    excelStatus.innerText = `✅ 成功！已載入 ${dynamicHeaders.length} 個欄位，共 ${excelRowsData.length} 筆資料。`;
+
+    applyFilterAndSortAndRender();
 }
 
-// 比對與渲染
-function checkAndRunComparison() {
+function filterColumns() {
+    if (dynamicHeaders.length === 0) return;
+    let keyword = getCleanKey(columnSearch.value);
+    columnSelector.innerHTML = "";
+
+    dynamicHeaders.forEach(field => {
+        if (keyword === "" || getCleanKey(field).includes(keyword)) {
+            let isChecked = selectedColumns.includes(field) ? "checked" : "";
+            columnSelector.insertAdjacentHTML('beforeend', `
+                <label class="checkbox-item">
+                    <input type="checkbox" value="${field}" ${isChecked} onchange="onCheckboxChange(this)">
+                    ${field}
+                </label>
+            `);
+        }
+    });
+}
+
+function onCheckboxChange(cb) {
+    if (cb.checked) { if (!selectedColumns.includes(cb.value)) selectedColumns.push(cb.value); } 
+    else { selectedColumns = selectedColumns.filter(c => c !== cb.value); }
+}
+
+function checkAllColumns(status) {
+    selectedColumns = status ? [...dynamicHeaders] : [];
+    columnSelector.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = status);
+}
+
+function saveColumnConfig() {
+    localStorage.setItem("awb_tool_selected_columns", JSON.stringify(selectedColumns));
+    alert("💾 欄位配置已成功記住！");
+}
+
+function updatePreviewAndRerender() {
+    applyFilterAndSortAndRender();
+}
+
+function applyQuickCategory(category) {
+    if (category === 'all') selectedColumns = [...dynamicHeaders];
+    else {
+        selectedColumns = dynamicHeaders.filter(field => {
+            let clean = getCleanKey(field);
+            if (category === 'mawb') return ["MAWB", "提單號", "運單號"].some(k => clean.includes(k));
+            if (category === 'date') return ["ETA", "ETD", "DATE", "時間", "日期"].some(k => clean.includes(k));
+            if (category === 'flight') return ["FLIGHT", "ROUTING", "航班"].some(k => clean.includes(k));
+            return true;
+        });
+    }
+    filterColumns();
+}
+
+function applyFilterAndSortAndRender() {
     if (excelRowsData.length === 0) return;
 
-    // 渲染網頁上的表頭文字
-    let headerHtml = `<th>功能操作</th><th>Link 狀態</th>`;
-    targetFields.forEach(h => { headerHtml += `<th>${h.replace(/\r|\n/g, " ")}</th>`; });
-    tableHeader.innerHTML = headerHtml;
+    displayRowsData = excelRowsData.filter(row => {
+        let awb = row[mawbFieldName] || "";
+        let isLink = awb && wordAwbSet.has(awb) ? "已 Link" : "未 Link";
+        row["__linkStatus"] = isLink;
 
-    let htmlBuffer = "";
-    let missingCount = 0;
-    let foundCount = 0;
+        for (let field in activeFilters) {
+            let filterVals = activeFilters[field];
+            if (filterVals && filterVals.length > 0) {
+                let cellVal = (field === "Link 狀態") ? isLink : (row[field] || "(空白)");
+                if (!filterVals.includes(cellVal)) return false;
+            }
+        }
+        return true;
+    });
 
+    if (currentSort.field && currentSort.direction !== 'none') {
+        let f = currentSort.field;
+        let dir = currentSort.direction === 'asc' ? 1 : -1;
+        displayRowsData.sort((a, b) => {
+            let valA = (f === "Link 狀態") ? a["__linkStatus"] : (a[f] || "");
+            let valB = (f === "Link 狀態") ? b["__linkStatus"] : (b[f] || "");
+            return valA.localeCompare(valB, 'zh-Hant', { numeric: true }) * dir;
+        });
+    }
+
+    renderTableHeader();
+    renderTableBody();
+}
+
+function renderTableHeader() {
+    let html = `
+        <th><div class="th-content">功能操作</div></th>
+        <th>
+            <div class="th-content">
+                <span class="th-label" onclick="toggleSort('Link 狀態')">Link 狀態 ${getSortArrow('Link 狀態')}</span>
+                <span class="filter-trigger ${activeFilters['Link 狀態'] ? 'active' : ''}" onclick="showFilterDropdown(event, 'Link 狀態')">🔽</span>
+            </div>
+        </th>
+    `;
+    
+    selectedColumns.forEach(h => {
+        let isFiltered = activeFilters[h] && activeFilters[h].length > 0;
+        html += `
+            <th>
+                <div class="th-content">
+                    <span class="th-label" onclick="toggleSort('${h}')">${h} ${getSortArrow(h)}</span>
+                    <span class="filter-trigger ${isFiltered ? 'active' : ''}" onclick="showFilterDropdown(event, '${h}')">🔽</span>
+                </div>
+            </th>
+        `;
+    });
+    tableHeader.innerHTML = html;
+}
+
+function getSortArrow(field) {
+    if (currentSort.field !== field) return `<span class="sort-icon">↕</span>`;
+    if (currentSort.direction === 'asc') return `<span style="color:var(--primary)">▲</span>`;
+    if (currentSort.direction === 'desc') return `<span style="color:var(--primary)">▼</span>`;
+    return `<span class="sort-icon">↕</span>`;
+}
+
+function toggleSort(field) {
+    if (currentSort.field === field) {
+        if (currentSort.direction === 'none') currentSort.direction = 'asc';
+        else if (currentSort.direction === 'asc') currentSort.direction = 'desc';
+        else currentSort.direction = 'none';
+    } else {
+        currentSort.field = field;
+        currentSort.direction = 'asc';
+    }
+    applyFilterAndSortAndRender();
+}
+
+function showFilterDropdown(e, field) {
+    e.stopPropagation();
+    let rect = e.target.getBoundingClientRect();
+    
+    let allValues = new Set();
     excelRowsData.forEach(row => {
-        let awb = row["MAWB"] || "";
-        let isExist = awb && wordAwbSet.has(awb);
-        let statusBadge = "";
-        let actionBtn = "";
+        let val = (field === "Link 狀態") ? row["__linkStatus"] : (row[field] || "(空白)");
+        allValues.add(val);
+    });
+    let uniqueVals = Array.from(allValues).sort();
+    let currentSelected = activeFilters[field] || [];
+
+    let html = `<div style="font-weight:bold; font-size:11px; margin-bottom:6px; color:var(--slate-600)">篩選: ${field}</div>`;
+    uniqueVals.forEach(val => {
+        let isChecked = (currentSelected.length === 0 || currentSelected.includes(val)) ? "checked" : "";
+        html += `
+            <label class="filter-dropdown-item">
+                <input type="checkbox" value="${val}" ${isChecked} data-field="${field}">
+                <span>${val}</span>
+            </label>
+        `;
+    });
+
+    html += `
+        <div class="filter-actions">
+            <button class="btn-mini" style="font-size:11px; padding:2px 4px;" onclick="commitFilter('${field}', true)">全選</button>
+            <button class="btn-mini" style="font-size:11px; padding:2px 4px;" onclick="commitFilter('${field}', false)">清除</button>
+            <button class="btn-mini" style="font-size:11px; padding:2px 6px; background:var(--slate-800); color:white;" onclick="applyDropdownFilter('${field}')">確定</button>
+        </div>
+    `;
+
+    filterDropdownContainer.innerHTML = html;
+    filterDropdownContainer.style.top = (window.scrollY + rect.bottom + 4) + "px";
+    filterDropdownContainer.style.left = (window.scrollX + rect.left - 40) + "px";
+    filterDropdownContainer.style.display = "block";
+}
+
+function commitFilter(field, checkAll) {
+    filterDropdownContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = checkAll);
+}
+
+function applyDropdownFilter(field) {
+    let checkboxes = filterDropdownContainer.querySelectorAll('input[type="checkbox"]');
+    let selected = []; let allChecked = true; let anyChecked = false;
+
+    checkboxes.forEach(cb => {
+        if (cb.checked) { selected.push(cb.value); anyChecked = true; } 
+        else { allChecked = false; }
+    });
+
+    if (allChecked || !anyChecked) { delete activeFilters[field]; } 
+    else { activeFilters[field] = selected; }
+
+    filterDropdownContainer.style.display = 'none';
+    applyFilterAndSortAndRender();
+}
+
+function resetAllFiltersAndSorts() {
+    activeFilters = {}; currentSort = { field: null, direction: 'none' };
+    applyFilterAndSortAndRender();
+}
+
+function renderTableBody() {
+    let htmlBuffer = "";
+    let missingCount = 0; let foundCount = 0;
+
+    displayRowsData.forEach(row => {
+        let awb = row[mawbFieldName] || "";
+        let isExist = row["__linkStatus"] === "已 Link";
+        let statusBadge = "", actionBtn = "";
 
         if (isExist) {
             statusBadge = `<span class="status-badge bg-found">V 已 Link</span>`;
-            actionBtn = `<span style="color:#999; font-size:11px;">無需處理</span>`;
+            actionBtn = `<span style="color:#aaa; font-size:11px;">無需處理</span>`;
             foundCount++;
         } else {
             statusBadge = `<span class="status-badge bg-missing">X 未 Link</span>`;
             missingCount++;
-            let flightVal = row["Flight"] || "未知";
-            let subject = encodeURIComponent(`【催單】提單未 Link 確認 - MAWB: ${awb}`);
-            let body = encodeURIComponent(`您好：\n\n核對發現以下提單在 Word 中缺失（未 Link）：\n\n- 提單號 (MAWB): ${awb}\n- 航班 (Flight): ${flightVal}\n\n請協助核對，謝謝！`);
-            actionBtn = `<a href="mailto:?subject=${subject}&body=${body}" style="background-color:#ff9800;color:white;padding:4px 8px;font-size:11px;border-radius:3px;text-decoration:none;">📧 發信追</a>`;
+            let subject = encodeURIComponent(`【催單】提單缺失未 Link - AWB: ${awb}`);
+            let body = encodeURIComponent(`您好：\n\n核對發現以下提單在 Word 中缺失（未 Link）：\n- 提單號: ${awb}\n\n請協助確認。`);
+            actionBtn = `<a href="mailto:?subject=${subject}&body=${body}" class="email-btn">發信催單</a>`;
         }
 
         htmlBuffer += `<tr><td>${actionBtn}</td><td>${statusBadge}</td>`;
-        targetFields.forEach(field => {
-            htmlBuffer += `<td>${row[field] || ""}</td>`;
-        });
+        selectedColumns.forEach(field => { htmlBuffer += `<td>${row[field] || ""}</td>`; });
         htmlBuffer += `</tr>`;
     });
 
     resultBody.innerHTML = htmlBuffer;
     resultPreviewCard.style.display = "block";
-    summaryText.innerHTML = `比對統計：共計 ${excelRowsData.length} 筆資料 ｜ 已 Link 成功：<span style="color:#137333;">${foundCount} 筆</span> ｜ 未 Link 異常：<span style="color:#c5221f;">${missingCount} 筆</span>`;
     
-    downloadBtn.disabled = false;
-    copyMissingBtn.disabled = false;
-    copyFoundBtn.disabled = false;
+    summaryText.innerHTML = `📊 當前檢視結果：共 ${displayRowsData.length} 筆 ｜ 已 Link：<span style="color:#065f46;">${foundCount} 筆</span> ｜ 未 Link 異常：<span style="color:#991b1b;">${missingCount} 筆</span>`;
+    
+    downloadBtn.disabled = false; copyMissingBtn.disabled = false; copyFoundBtn.disabled = false;
 }
 
-// 2. 一鍵複製【沒有（未Link）】的提單號
+function toggleTableDense(isDense) {
+    if (isDense) previewTable.classList.add("dense-table");
+    else previewTable.classList.remove("dense-table");
+}
+
 function copyMissingAwbs() {
-    let list = [];
-    excelRowsData.forEach(row => {
-        let awb = row["MAWB"];
-        if (awb && !wordAwbSet.has(awb)) {
-            list.push(awb);
-        }
-    });
-    if(list.length === 0) { alert("沒有任何未 Link 的提單號"); return; }
+    let list = excelRowsData.filter(row => !wordAwbSet.has(row[mawbFieldName])).map(row => row[mawbFieldName]);
+    if(list.length === 0) { alert("無未 Link 提單"); return; }
     navigator.clipboard.writeText(list.join("\n"));
-    alert(`✅ 已複製 ${list.length} 筆【未 Link】的提單號碼！`);
+    alert(`已複製 ${list.length} 筆未 Link 單號。`);
 }
 
-// 3. 一鍵複製【已有（已Link）】的提單號
 function copyFoundAwbs() {
-    let list = [];
-    excelRowsData.forEach(row => {
-        let awb = row["MAWB"];
-        if (awb && wordAwbSet.has(awb)) {
-            list.push(awb);
-        }
-    });
-    if(list.length === 0) { alert("沒有任何已 Link 的提單號"); return; }
+    let list = excelRowsData.filter(row => wordAwbSet.has(row[mawbFieldName])).map(row => row[mawbFieldName]);
+    if(list.length === 0) { alert("無已 Link 提單"); return; }
     navigator.clipboard.writeText(list.join("\n"));
-    alert(`✅ 已複製 ${list.length} 筆【已 Link】的提單號碼！`);
+    alert(`已複製 ${list.length} 筆已 Link 單號。`);
 }
 
-// 4. 導出未 Link 異常項目並強制補齊正確表頭
 function exportMissingExcel() {
-    let missingRowsOutput = [];
-    excelRowsData.forEach(row => {
-        let awb = row["MAWB"] || "";
-        if (!wordAwbSet.has(awb)) {
-            let filteredRow = {};
-            targetFields.forEach(field => {
-                filteredRow[field] = row[field] || "";
-            });
-            missingRowsOutput.push(filteredRow);
-        }
+    if (selectedColumns.length === 0) { alert("請先勾選欄位"); return; }
+    let output = displayRowsData.filter(row => row["__linkStatus"] === "未 Link").map(row => {
+        let fRow = {}; selectedColumns.forEach(f => { fRow[f] = row[f] || ""; });
+        return fRow;
     });
 
-    if (missingRowsOutput.length === 0) {
-        alert("恭喜！所有提單已全數 Link 完畢，沒有任何異常項目。");
-        return;
-    }
-
-    // 將資料轉為 Sheet，並強制指定正確的表頭名稱與順序
-    const worksheet = XLSX.utils.json_to_sheet(missingRowsOutput, { header: targetFields });
+    if (output.length === 0) { alert("無異常項目可導出。"); return; }
+    const worksheet = XLSX.utils.json_to_sheet(output, { header: selectedColumns });
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "未Link異常項目");
-    XLSX.writeFile(workbook, "未Link_異常催單清單.xlsx");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "異常清單");
+    XLSX.writeFile(workbook, "未Link_異常自訂清單.xlsx");
 }
 </script>
 
