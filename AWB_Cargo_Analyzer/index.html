@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWB Cargo Analyzer Enterprise - 智慧報關轉換系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8fafc; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .drag-over { border-color: #2563eb !important; background-color: #eff6ff !important; }
+        
+        /* 全頁放大 Modal 樣式 */
+        .fullscreen-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 50;
+            background-color: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(4px);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .fullscreen-modal-content {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen py-6 px-4 md:px-8">
+    <!-- 將 max-w-5xl 調整為自適應大寬度 max-w-[96%] xl:max-w-[1700px] -->
+    <div class="w-full max-w-[96%] xl:max-w-[1700px] mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <div class="flex items-center gap-2 text-blue-600 font-semibold text-xs mb-1 uppercase tracking-wider">
+                    <i class="fa-solid fa-shield-halved"></i> 企業內部物流系統 - 雲端與離線雙用版
+                </div>
+                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">AWB Cargo Analyzer Enterprise</h1>
+                <p class="text-xs text-slate-500 mt-1">寬螢幕滿版優化版：支援英文貨名即時點擊編輯、雙重屬性核對與雙模式匯出。</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="downloadTemplates()" class="bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border border-slate-300 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-download text-blue-600"></i> 下載標準 Excel 範本
+                </button>
+                <button onclick="clearAllData()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2 border border-rose-200 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-trash-can text-rose-600"></i> 清空資料
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟一：上傳檔案與雲端連結區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Packing List -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                        <span class="bg-blue-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px]">1</span>
+                        Packing List 檔案 (可批次多選)
+                    </h2>
+                    <div id="drop-zone-pl" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 transition bg-slate-50 flex flex-col items-center justify-center min-h-[130px]">
+                        <i class="fa-solid fa-files text-3xl text-emerald-600 mb-2"></i>
+                        <p class="text-xs font-medium text-slate-700">拖拉多個 Packing List 到這裡，或 <span class="text-blue-600 underline">點擊選檔</span></p>
+                        <p class="text-[11px] text-slate-400 mt-1">系統自動辨識提單號 (支援 ABC-12345678 格式)</p>
+                        <input type="file" id="file-pl" class="hidden" accept=".xlsx, .xls" multiple>
+                    </div>
+                </div>
+                <div id="file-pl-info" class="mt-3 text-xs text-slate-700 font-medium hidden flex items-center gap-2 bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                    <i class="fa-solid fa-circle-check text-emerald-600 shrink-0"></i> 
+                    <span>已成功載入 <strong id="file-pl-count" class="text-emerald-800">0</strong> 個 Packing List 檔案</span>
+                </div>
+            </div>
+
+            <!-- 貨名較對.xlsx / Google Sheets -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+                        <span class="bg-blue-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px]">2</span>
+                        貨名較對 (標準資料庫 - 選填)
+                    </h2>
+                    <div id="drop-zone-map" class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer hover:border-blue-500 transition bg-slate-50 flex flex-col items-center justify-center min-h-[90px]">
+                        <i class="fa-solid fa-file-shield text-2xl text-blue-600 mb-1"></i>
+                        <p class="text-xs font-medium text-slate-700">拖拉貨名較對表 (.xlsx) 到這裡，或 <span class="text-blue-600 underline">點擊選檔</span></p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">包含欄位：商品名稱 | 可用名稱 | 貨物種類 (未匯入亦可自動翻譯分析)</p>
+                        <input type="file" id="file-map" class="hidden" accept=".xlsx, .xls">
+                    </div>
+
+                    <!-- Google Drive / Sheets 連結輸入與常用紀錄區 -->
+                    <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                                <i class="fa-brands fa-google-drive text-emerald-600"></i> 或貼上 Google Drive / Sheets 連結：
+                            </label>
+                            <select id="saved-links-select" onchange="useSavedLink()" class="text-[11px] border border-slate-300 rounded px-2 py-0.5 bg-slate-50 text-slate-700 focus:outline-none">
+                                <option value="">★ 選擇常用連結...</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="gdrive-url-input" placeholder="貼上 Google Sheets 連結..." 
+                                   class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <button type="button" onclick="loadFromGoogleDrive()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 transition flex items-center gap-1 cursor-pointer">
+                                <i class="fa-solid fa-cloud-arrow-down"></i> 讀取
+                            </button>
+                            <button type="button" onclick="saveCurrentLink()" title="將此連結儲存為常用" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg shrink-0 transition cursor-pointer">
+                                <i class="fa-solid fa-bookmark text-amber-500"></i> 儲存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="file-map-info" class="mt-3 text-xs text-slate-700 font-medium hidden flex items-center gap-2 bg-blue-50 p-3 rounded-xl border border-blue-200">
+                    <i class="fa-solid fa-circle-check text-blue-600 shrink-0"></i> <span id="file-map-name" class="truncate"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步驟二：動態種類與 Top N 設定 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <span class="bg-blue-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px]">3</span>
+                貨物種類與 Top N 數量限制設定
+            </h2>
+            
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <p class="text-xs text-slate-500 mb-3 font-medium">系統將自動解析較對表中的貨物種類（未上傳較對表時預設分類為「普貨」）：</p>
+                <div id="category-settings-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+                    <p class="text-xs text-slate-400 col-span-full py-2 text-center italic">預設分類「普貨」生效中...</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 items-center">
+                <div class="flex items-center gap-3">
+                    <label class="text-xs font-bold text-slate-700">海關編碼格式樣板：</label>
+                    <input type="text" id="hs-format-template" value="(HS CODE: {code})" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs w-60 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                </div>
+                <div class="flex items-center gap-3 md:justify-end">
+                    <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition">
+                        <input type="checkbox" id="chk-export-hs" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                        <span>匯出結果中包含 HS Code (海關編碼)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步驟三：執行分析與匯出 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                <div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                        <span class="bg-blue-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px]">4 & 5</span>
+                        執行分析與檔案匯出
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">點擊「執行智慧分析」後可預覽結果，並可匯出 Result.xlsx 或選擇是否翻譯未對應商品</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                    <button onclick="startAnalysis()" id="btn-analyze" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-brain"></i> 4. 執行智慧分析
+                    </button>
+
+                    <button onclick="exportUnmappedExcel(false)" id="btn-export-unmapped" disabled class="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed" title="直接匯出未對應商品表，無須等待翻譯">
+                        <i class="fa-solid fa-file-export"></i> 匯出未對應商品 (<span id="unmapped-count-badge">0</span>)
+                    </button>
+                    
+                    <button onclick="exportUnmappedExcel(true)" id="btn-export-unmapped-translate" disabled class="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed" title="同步執行中譯英翻譯後再匯出">
+                        <i class="fa-solid fa-language"></i> 匯出未對應商品及即時翻譯
+                    </button>
+
+                    <button onclick="exportExcel()" id="btn-export" disabled class="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-file-excel"></i> 5. 匯出 Result.xlsx
+                    </button>
+                </div>
+            </div>
+
+            <!-- 進度條 -->
+            <div id="progress-container" class="space-y-2 hidden pt-2 border-t border-slate-100">
+                <div class="flex justify-between text-xs font-semibold text-slate-600">
+                    <span id="progress-status-text">正在初始化分析引擎...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果預覽區 (全滿版大數據呈現區) -->
+        <div id="preview-section" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4 hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <i class="fa-solid fa-table-list text-blue-600"></i> 分析結果預覽 (英文貨名可點擊直接修改文字，點擊 × 可刪除)
+                </h2>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleFullscreen(true)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-expand text-blue-600"></i> 全頁放大預覽
+                    </button>
+                    <button onclick="copyAllCombinedCargoFormat(this)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-copy"></i> 一鍵複製所有提單格式
+                    </button>
+                </div>
+            </div>
+            
+            <div id="table-container-normal" class="overflow-x-auto border border-slate-200 rounded-xl max-h-[650px]">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-700 border-b border-slate-200 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3.5 w-48 font-bold">提單號</th>
+                            <th class="p-3.5 w-[38%] font-bold">貨名描述 (英文可用名稱 - 可點擊編輯)</th>
+                            <th class="p-3.5 text-amber-800 bg-amber-50/80 border-x border-amber-200/80 w-[38%] font-bold">對應原始中文 (Excel屬性 / AI核對 / 數量)</th>
+                            <th class="p-3.5 w-[24%] font-bold">類別統計</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-tbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 全頁放大 Modal 彈窗容器 -->
+    <div id="fullscreen-modal" class="fullscreen-modal hidden">
+        <div class="fullscreen-modal-content">
+            <div class="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-table-list text-blue-400"></i>
+                    <h3 class="font-bold text-sm">全頁放大預覽檢視</h3>
+                    <span class="text-xs text-slate-400 ml-2">(可直接點擊英文文字進行修改，內容將同步即時更新)</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="copyAllCombinedCargoFormat(this)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-copy"></i> 一鍵複製所有格式
+                    </button>
+                    <button onclick="toggleFullscreen(false)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-compress"></i> 關閉全頁
+                    </button>
+                </div>
+            </div>
+            <div id="table-container-fullscreen" class="overflow-auto flex-1 p-4 bg-slate-50"></div>
+        </div>
+    </div>
+
+    <script>
+        let plFiles = [];
+        let mapFile = null;
+        let mappingData = [];
+        let detectedCategories = new Set();
+        let cachedResultRows = [];
+        let unmappedItemsMap = new Map();
+
+        // AI 貨物風險核對規則
+        const aiCategoryRules = {
+            '危險貨': ['電池', '电池', '鋰電池', '锂电池', '蓄電池', '易燃', '打火機', '打火机', '氣體', '气体', '高壓', '高压', '化學', '化学', '酒精', '消毒液', '磁鐵', '强磁', '酸', '鹼', '碱'],
+            '敏貨': ['液體', '液体', '粉末', '膏狀', '膏状', '乳液', '精油', '香水', '化妝品', '化妆品', '食品', '零食', '茶葉', '茶叶', '藥', '药', '保健品', '帶電', '带电', '藍牙', '蓝牙', '耳機', '耳机', '馬達', '马达', '仿牌', '名牌'],
+            '受管制貨物': ['刀', '剪刀', '槍', '枪', '武器', '彈藥', '弹药', '煙', '烟', '電子煙', '电子烟', '酒', '植物', '種子', '种子', '動物', '动物', '情趣', '成人用品', '醫療器械', '医疗器械']
+        };
+
+        function aiClassifyCargo(itemName) {
+            if (!itemName) return '普貨';
+            const name = String(itemName).toLowerCase();
+
+            for (let [category, keywords] of Object.entries(aiCategoryRules)) {
+                for (let kw of keywords) {
+                    if (name.includes(kw.toLowerCase())) {
+                        return category;
+                    }
+                }
+            }
+            return '普貨';
+        }
+
+        // 內建常見物流品名中譯英字典
+        const builtinDictionary = {
+            '手機殼': 'PHONE CASE', '手机壳': 'PHONE CASE',
+            't恤': 'T-SHIRT', '短袖': 'T-SHIRT', '上衣': 'TOP',
+            '連衣裙': 'DRESS', '连衣裙': 'DRESS', '裙子': 'SKIRT',
+            '褲子': 'TROUSERS', '裤子': 'TROUSERS', '長褲': 'PANTS', '短褲': 'SHORTS',
+            '襯衫': 'SHIRT', '衬衫': 'SHIRT',
+            '耳環': 'EARRINGS', '耳环': 'EARRINGS', '耳釘': 'EARRINGS',
+            '手鍊': 'BRACELET', '手链': 'BRACELET', '手鐲': 'BRACELET',
+            '項鍊': 'NECKLACE', '项链': 'NECKLACE', '戒指': 'RING',
+            '鞋子': 'SHOES', '運動鞋': 'SNEAKERS', '高跟鞋': 'HIGH HEELS',
+            '帽子': 'HAT', '鴨舌帽': 'CAP', '襪子': 'SOCKS', '袜子': 'SOCKS',
+            '包包': 'BAG', '單肩包': 'SHOULDER BAG', '背包': 'BACKPACK',
+            '眼鏡': 'GLASSES', '太阳镜': 'SUNGLASSES', '太陽眼鏡': 'SUNGLASSES',
+            '玩具': 'TOY', '公仔': 'DOLL', '發圈': 'HAIR TIE', '发圈': 'HAIR TIE',
+            '無線耳機': 'WIRELESS EARPHONES', '无线耳机': 'WIRELESS EARPHONES',
+            '手提包': 'HANDBAG'
+        };
+
+        const translationCache = new Map();
+
+        const colorPalette = [
+            { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+            { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+            { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+            { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+            { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+            { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' }
+        ];
+
+        let categoryColorMap = {};
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSavedLinks();
+            renderCategorySettings();
+        });
+
+        setupDropZone('drop-zone-pl', 'file-pl', (files) => {
+            plFiles = Array.from(files);
+            document.getElementById('file-pl-count').innerText = plFiles.length;
+            document.getElementById('file-pl-info').classList.remove('hidden');
+            checkReady();
+        }, true);
+
+        setupDropZone('drop-zone-map', 'file-map', (files) => {
+            mapFile = files[0];
+            document.getElementById('file-map-name').innerText = mapFile.name;
+            document.getElementById('file-map-info').classList.remove('hidden');
+            parseMappingFile(mapFile);
+        }, false);
+
+        function setupDropZone(dropZoneId, inputId, callback, isMultiple) {
+            const dropZone = document.getElementById(dropZoneId);
+            const input = document.getElementById(inputId);
+
+            dropZone.addEventListener('click', () => input.click());
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) callback(e.target.files);
+            });
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    callback(e.dataTransfer.files);
+                }
+            });
+        }
+
+        async function translateChineseToEnglish(text) {
+            if (!text) return '';
+            const trimmed = String(text).trim();
+            const lowerKey = trimmed.toLowerCase();
+
+            if (builtinDictionary[lowerKey]) return builtinDictionary[lowerKey];
+            for (let k in builtinDictionary) {
+                if (lowerKey.includes(k)) return builtinDictionary[k];
+            }
+
+            if (translationCache.has(lowerKey)) return translationCache.get(lowerKey);
+
+            try {
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=zh|en`);
+                const data = await res.json();
+                if (data && data.responseData && data.responseData.translatedText) {
+                    let translated = data.responseData.translatedText.trim();
+                    translated = translated.replace(/^./, c => c.toUpperCase());
+                    translationCache.set(lowerKey, translated);
+                    return translated;
+                }
+            } catch (err) {
+                console.warn('線上翻譯失敗:', err);
+            }
+
+            return trimmed;
+        }
+
+        function toggleFullscreen(show) {
+            const modal = document.getElementById('fullscreen-modal');
+            const table = document.querySelector('table');
+            const normalContainer = document.getElementById('table-container-normal');
+            const fullscreenContainer = document.getElementById('table-container-fullscreen');
+
+            if (show) {
+                fullscreenContainer.appendChild(table);
+                modal.classList.remove('hidden');
+            } else {
+                normalContainer.appendChild(table);
+                modal.classList.add('hidden');
+            }
+        }
+
+        function getSavedLinks() {
+            try {
+                return JSON.parse(localStorage.getItem('awb_saved_gdrive_links') || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveCurrentLink() {
+            const urlInput = document.getElementById('gdrive-url-input').value.trim();
+            if (!urlInput) {
+                alert('請先在輸入框貼上 Google Sheets 連結！');
+                return;
+            }
+            let name = prompt('請輸入此連結的簡短名稱/備註：', '標準較對表');
+            if (!name) return;
+
+            let links = getSavedLinks();
+            links.push({ name: name.trim(), url: urlInput });
+            localStorage.setItem('awb_saved_gdrive_links', JSON.stringify(links));
+            renderSavedLinks();
+            alert('已成功儲存至常用連結！');
+        }
+
+        function renderSavedLinks() {
+            const select = document.getElementById('saved-links-select');
+            const links = getSavedLinks();
+            select.innerHTML = '<option value="">★ 選擇常用連結...</option>';
+            links.forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.url;
+                opt.textContent = `${item.name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function useSavedLink() {
+            const select = document.getElementById('saved-links-select');
+            if (select.value) {
+                document.getElementById('gdrive-url-input').value = select.value;
+            }
+        }
+
+        function getSmartFieldValue(row, possibleKeys, defaultIndex = 0) {
+            if (!row) return '';
+            const rowKeys = Object.keys(row);
+            for (let pk of possibleKeys) {
+                const normPk = pk.trim().toLowerCase();
+                for (let rk of rowKeys) {
+                    if (rk.trim().toLowerCase() === normPk) {
+                        let val = String(row[rk] || '').trim();
+                        if (val) return val;
+                    }
+                }
+            }
+            if (rowKeys.length > defaultIndex) {
+                return String(row[rowKeys[defaultIndex]] || '').trim();
+            }
+            return '';
+        }
+
+        window.handleGoogleSheetsResponse = function(data) {
+            const oldScript = document.getElementById('gviz-jsonp-script');
+            if (oldScript) oldScript.remove();
+
+            const progressContainer = document.getElementById('progress-container');
+
+            if (data.status === 'error') {
+                alert('讀取 Google Sheets 失敗：' + (data.errors[0].message || '請確認權限設定'));
+                progressContainer.classList.add('hidden');
+                return;
+            }
+
+            const table = data.table;
+            const cols = table.cols.map((c, idx) => (c && c.label && c.label.trim()) ? c.label.trim() : `col_${idx}`);
+            
+            const rows = [];
+            table.rows.forEach(r => {
+                let rowObj = {};
+                let hasData = false;
+                r.c.forEach((cell, idx) => {
+                    let colName = cols[idx] || `col_${idx}`;
+                    let val = (cell && cell.v !== null && cell.v !== undefined) ? cell.v : '';
+                    rowObj[colName] = val;
+                    if (val !== '') hasData = true;
+                });
+                if (hasData) rows.push(rowObj);
+            });
+
+            if (rows.length === 0) {
+                alert('成功連線，但讀取到的試算表內容為空！');
+                progressContainer.classList.add('hidden');
+                return;
+            }
+
+            mappingData = rows;
+            mapFile = { name: `[Google 雲端] 貨名較對` };
+            processMappingData();
+        };
+
+        function processMappingData() {
+            detectedCategories.clear();
+            categoryColorMap = {};
+
+            let colorIdx = 0;
+            mappingData.forEach(row => {
+                let cat = getSmartFieldValue(row, ['貨物種類', '货物种类', '種類', '种类', 'Category'], 2) || '普貨';
+                detectedCategories.add(cat);
+                if (!categoryColorMap[cat]) {
+                    categoryColorMap[cat] = colorPalette[colorIdx % colorPalette.length];
+                    colorIdx++;
+                }
+            });
+
+            document.getElementById('file-map-name').innerText = `已載入較對表 (共 ${mappingData.length} 筆資料)`;
+            document.getElementById('file-map-info').classList.remove('hidden');
+            
+            renderCategorySettings();
+            checkReady();
+
+            const progressContainer = document.getElementById('progress-container');
+            updateProgress(100, '雲端較對表載入成功！');
+            setTimeout(() => {
+                progressContainer.classList.add('hidden');
+            }, 1000);
+        }
+
+        function loadFromGoogleDrive() {
+            const urlInput = document.getElementById('gdrive-url-input').value.trim();
+            if (!urlInput) {
+                alert('請先輸入 Google Drive 或 Google Sheets 連結！');
+                return;
+            }
+
+            let fileId = '';
+            const sheetMatch = urlInput.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            const fileMatch = urlInput.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+            const idMatch = urlInput.match(/id=([a-zA-Z0-9-_]+)/);
+
+            if (sheetMatch && sheetMatch[1]) {
+                fileId = sheetMatch[1];
+            } else if (fileMatch && fileMatch[1]) {
+                fileId = fileMatch[1];
+            } else if (idMatch && idMatch[1]) {
+                fileId = idMatch[1];
+            }
+
+            if (!fileId) {
+                alert('無法解析連結格式，請確認是否為有效的 Google Drive 或 Google Sheets 連結。');
+                return;
+            }
+
+            const progressContainer = document.getElementById('progress-container');
+            progressContainer.classList.remove('hidden');
+            updateProgress(30, '正在讀取 Google 雲端較對表...');
+
+            const oldScript = document.getElementById('gviz-jsonp-script');
+            if (oldScript) oldScript.remove();
+
+            const gvizUrl = `https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?headers=1&tqx=responseHandler:handleGoogleSheetsResponse`;
+
+            const script = document.createElement('script');
+            script.id = 'gviz-jsonp-script';
+            script.src = gvizUrl;
+            script.onerror = function() {
+                alert('無法讀取雲端檔案！\n\n請檢查：\n1. 網路連線是否正常\n2. 試算表共用設定是否已設為「知道連結的人皆可檢視」');
+                progressContainer.classList.add('hidden');
+            };
+
+            document.body.appendChild(script);
+        }
+
+        function clearAllData() {
+            plFiles = [];
+            mapFile = null;
+            mappingData = [];
+            detectedCategories.clear();
+            cachedResultRows = [];
+            unmappedItemsMap.clear();
+            categoryColorMap = {};
+
+            document.getElementById('file-pl').value = '';
+            document.getElementById('file-map').value = '';
+            document.getElementById('gdrive-url-input').value = '';
+
+            document.getElementById('file-pl-info').classList.add('hidden');
+            document.getElementById('file-map-info').classList.add('hidden');
+            document.getElementById('preview-section').classList.add('hidden');
+            document.getElementById('progress-container').classList.add('hidden');
+
+            renderCategorySettings();
+
+            document.getElementById('btn-analyze').setAttribute('disabled', 'true');
+            document.getElementById('btn-export').setAttribute('disabled', 'true');
+            document.getElementById('btn-export-unmapped').setAttribute('disabled', 'true');
+            document.getElementById('btn-export-unmapped-translate').setAttribute('disabled', 'true');
+            document.getElementById('unmapped-count-badge').innerText = '0';
+        }
+
+        function normalizeName(str) {
+            if (!str) return '';
+            return String(str).trim().toLowerCase().replace(/\s+/g, '');
+        }
+
+        function parseMappingFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+                    mappingData = rows;
+                    processMappingData();
+                } catch (err) {
+                    alert('讀取貨名較對表失敗，請確認欄位格式！');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderCategorySettings() {
+            const container = document.getElementById('category-settings-container');
+            container.innerHTML = '';
+
+            if (detectedCategories.size === 0) {
+                detectedCategories.add('普貨');
+            }
+
+            detectedCategories.forEach(cat => {
+                const colors = categoryColorMap[cat] || colorPalette[0];
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl border ${colors.border} ${colors.bg} flex flex-col gap-2 shadow-sm`;
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-xs ${colors.text} flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" checked data-cat="${cat}" class="cat-checkbox rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                            <i class="fa-solid fa-tag text-[10px]"></i> ${cat}
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-600 pt-1 border-t border-slate-200/60">
+                        <span>Top N 數量:</span>
+                        <input type="number" value="5" min="1" data-limit-cat="${cat}" class="cat-limit w-16 border border-slate-300 rounded px-2 py-1 text-center font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function checkReady() {
+            const btnAnalyze = document.getElementById('btn-analyze');
+            if (plFiles.length > 0) {
+                btnAnalyze.removeAttribute('disabled');
+            } else {
+                btnAnalyze.setAttribute('disabled', 'true');
+            }
+        }
+
+        async function startAnalysis() {
+            const progressContainer = document.getElementById('progress-container');
+            progressContainer.classList.remove('hidden');
+            document.getElementById('btn-analyze').setAttribute('disabled', 'true');
+            document.getElementById('btn-export').setAttribute('disabled', 'true');
+            document.getElementById('btn-export-unmapped').setAttribute('disabled', 'true');
+            document.getElementById('btn-export-unmapped-translate').setAttribute('disabled', 'true');
+
+            const activeCategories = {};
+            document.querySelectorAll('.cat-checkbox').forEach(cb => {
+                const cat = cb.getAttribute('data-cat');
+                if (cb.checked) {
+                    const limitInput = document.querySelector(`input[data-limit-cat="${cat}"]`);
+                    activeCategories[cat] = parseInt(limitInput.value) || 5;
+                }
+            });
+
+            const hsTemplate = document.getElementById('hs-format-template').value || '(HS CODE: {code})';
+            const includeHs = document.getElementById('chk-export-hs').checked;
+
+            try {
+                updateProgress(15, '正在建立 productMap 字典...');
+                
+                const productMap = new Map();
+                if (mappingData.length > 0) {
+                    mappingData.forEach(row => {
+                        let rawName = getSmartFieldValue(row, ['商品名稱', '商品名称', 'Name'], 0);
+                        let normKey = normalizeName(rawName);
+                        if (normKey) {
+                            productMap.set(normKey, {
+                                rawName: rawName,
+                                standardName: getSmartFieldValue(row, ['可用名稱', '可用名称', 'StandardName'], 1),
+                                category: getSmartFieldValue(row, ['貨物種類', '货物种类', '種類', '种类', 'Category'], 2) || '普貨'
+                            });
+                        }
+                    });
+                }
+
+                await sleep(50);
+                updateProgress(35, '正在讀取 Packing List 並計算 Top N 貨量排序...');
+
+                const masterAgg = new Map();
+                unmappedItemsMap.clear();
+
+                for (let i = 0; i < plFiles.length; i++) {
+                    let file = plFiles[i];
+                    let fileName = file.name.replace(/\.[^/.]+$/, "");
+                    let match = fileName.match(/([A-Za-z0-9]{3}-\d{8})/);
+                    let blNumber = match ? match[1] : fileName;
+
+                    const buffer = await file.arrayBuffer();
+                    const wb = XLSX.read(buffer, { type: 'array' });
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+                    if (!masterAgg.has(blNumber)) {
+                        masterAgg.set(blNumber, new Map());
+                    }
+                    let blMap = masterAgg.get(blNumber);
+
+                    rows.forEach(row => {
+                        let rawItemName = getSmartFieldValue(row, ['商品名稱', '商品名称', '申報貨名', '申报货名', 'Item', 'Name'], 0);
+                        let normKey = normalizeName(rawItemName);
+                        let hsCode = getSmartFieldValue(row, ['海关编码', '海關編碼', 'HS Code', 'HSCODE', 'HS'], 1);
+                        let qtyVal = getSmartFieldValue(row, ['數量', '数量', 'Qty', 'QTY'], 2);
+                        let qty = parseFloat(qtyVal || 1);
+
+                        if (!normKey) return;
+
+                        let stdName = '';
+                        let cat = '普貨';
+                        let isMapped = false;
+                        let excelCategory = '';
+
+                        if (productMap.has(normKey)) {
+                            let info = productMap.get(normKey);
+                            stdName = info.standardName;
+                            cat = info.category;
+                            excelCategory = info.category;
+                            isMapped = true;
+                        } else {
+                            stdName = rawItemName;
+                            cat = '普貨';
+
+                            if (!unmappedItemsMap.has(rawItemName)) {
+                                unmappedItemsMap.set(rawItemName, { totalQty: 0, sampleHs: hsCode });
+                            }
+                            let unmappedObj = unmappedItemsMap.get(rawItemName);
+                            unmappedObj.totalQty += qty;
+                            if (!unmappedObj.sampleHs && hsCode) {
+                                unmappedObj.sampleHs = hsCode;
+                            }
+                        }
+
+                        if (activeCategories.hasOwnProperty(cat)) {
+                            if (!blMap.has(stdName)) {
+                                blMap.set(stdName, {
+                                    rawChineseName: rawItemName,
+                                    category: cat,
+                                    excelCategory: excelCategory,
+                                    isMapped: isMapped,
+                                    hsMap: new Map()
+                                });
+                            }
+                            let itemObj = blMap.get(stdName);
+                            let hsMap = itemObj.hsMap;
+                            hsMap.set(hsCode, (hsMap.get(hsCode) || 0) + qty);
+                        }
+                    });
+                }
+
+                updateProgress(70, '正在對 Top N 貨品執行智慧中譯英與 AI/Excel 雙屬性標註...');
+                await sleep(50);
+
+                cachedResultRows = [];
+
+                for (let [blNumber, blMap] of masterAgg.entries()) {
+                    let itemsList = [];
+
+                    blMap.forEach((itemObj, stdName) => {
+                        let cat = itemObj.category;
+                        let bestHsCode = '';
+                        let maxQty = -1;
+                        let totalStdQty = 0;
+
+                        itemObj.hsMap.forEach((qty, hsCode) => {
+                            totalStdQty += qty;
+                            if (qty > maxQty) {
+                                maxQty = qty;
+                                bestHsCode = hsCode;
+                            }
+                        });
+
+                        itemsList.push({
+                            standardName: stdName,
+                            rawChineseName: itemObj.rawChineseName,
+                            category: cat,
+                            excelCategory: itemObj.excelCategory,
+                            isMapped: itemObj.isMapped,
+                            bestHsCode: bestHsCode,
+                            totalQty: totalStdQty
+                        });
+                    });
+
+                    let finalSelectedItems = [];
+
+                    Object.keys(activeCategories).forEach(cat => {
+                        let catItems = itemsList.filter(x => x.category === cat);
+                        catItems.sort((a, b) => b.totalQty - a.totalQty);
+                        
+                        let topN = activeCategories[cat];
+                        let sliced = catItems.slice(0, topN);
+
+                        if (sliced.length > 0) {
+                            finalSelectedItems.push(...sliced);
+                        }
+                    });
+
+                    let cargoItems = [];
+                    for (let item of finalSelectedItems) {
+                        let finalEnglishName = item.standardName;
+                        
+                        if (!item.isMapped && /[\u4e00-\u9fa5]/.test(item.standardName)) {
+                            finalEnglishName = await translateChineseToEnglish(item.standardName);
+                        }
+
+                        let formattedHs = (includeHs && item.bestHsCode) ? hsTemplate.replace('{code}', item.bestHsCode) : '';
+                        
+                        let excelAttr = item.excelCategory ? item.excelCategory : '未對應';
+                        let aiAttr = 'AI-' + aiClassifyCargo(item.rawChineseName);
+
+                        cargoItems.push({
+                            id: Math.random().toString(36).substring(2, 9),
+                            text: `${finalEnglishName} ${formattedHs}`.trim(),
+                            rawChinese: item.rawChineseName,
+                            qty: item.totalQty,
+                            category: item.category,
+                            excelAttr: excelAttr,
+                            aiAttr: aiAttr
+                        });
+                    }
+
+                    let categoryObjects = buildCategoryObjects(cargoItems, activeCategories);
+
+                    cachedResultRows.push({
+                        'blNumber': blNumber,
+                        'cargoItems': cargoItems,
+                        'categoryObjects': categoryObjects
+                    });
+                }
+
+                updateProgress(100, '分析與雙重屬性核對完成！');
+                
+                renderPreview(cachedResultRows);
+
+                document.getElementById('btn-analyze').removeAttribute('disabled');
+                document.getElementById('btn-export').removeAttribute('disabled');
+                
+                const unmappedCount = unmappedItemsMap.size;
+                document.getElementById('unmapped-count-badge').innerText = unmappedCount;
+                if (unmappedCount > 0) {
+                    document.getElementById('btn-export-unmapped').removeAttribute('disabled');
+                    document.getElementById('btn-export-unmapped-translate').removeAttribute('disabled');
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('處理過程中發生錯誤，請檢查檔案格式。');
+                document.getElementById('btn-analyze').removeAttribute('disabled');
+            }
+        }
+
+        function updateCargoText(blNumber, itemId, newText) {
+            let rowObj = cachedResultRows.find(r => r.blNumber === blNumber);
+            if (rowObj) {
+                let item = rowObj.cargoItems.find(it => it.id === itemId);
+                if (item) {
+                    item.text = newText.trim();
+                    
+                    const activeCategories = {};
+                    document.querySelectorAll('.cat-checkbox').forEach(cb => {
+                        const cat = cb.getAttribute('data-cat');
+                        if (cb.checked) {
+                            const limitInput = document.querySelector(`input[data-limit-cat="${cat}"]`);
+                            activeCategories[cat] = parseInt(limitInput.value) || 5;
+                        }
+                    });
+                    
+                    rowObj.categoryObjects = buildCategoryObjects(rowObj.cargoItems, activeCategories);
+                    updateCategoryCell(blNumber, rowObj.categoryObjects);
+                }
+            }
+        }
+
+        function buildCategoryObjects(cargoItems, activeCategories) {
+            let categoryObjects = [];
+            Object.keys(activeCategories).forEach(cat => {
+                let catItems = cargoItems.filter(x => x.category === cat);
+                if (catItems.length > 0) {
+                    let names = catItems.map(s => s.text.replace(/\(HS CODE:.*?\)/g, '').trim()).join(', ');
+                    categoryObjects.push({ category: cat, text: `${cat}: ${names}` });
+                }
+            });
+            return categoryObjects;
+        }
+
+        function updateCategoryCell(blNumber, categoryObjects) {
+            const cell = document.getElementById(`cat-cell-${blNumber}`);
+            if (cell) {
+                cell.innerHTML = categoryObjects.map(obj => {
+                    let colors = categoryColorMap[obj.category] || colorPalette[0];
+                    return `<span class="inline-block px-2 py-0.5 my-0.5 rounded-md border ${colors.border} ${colors.bg} ${colors.text} font-medium text-[11px]">${obj.text}</span>`;
+                }).join('<br>') || '<span class="text-slate-400">無</span>';
+            }
+        }
+
+        function removeCargoItem(blNumber, itemId) {
+            let rowObj = cachedResultRows.find(r => r.blNumber === blNumber);
+            if (rowObj) {
+                rowObj.cargoItems = rowObj.cargoItems.filter(item => item.id !== itemId);
+                
+                const activeCategories = {};
+                document.querySelectorAll('.cat-checkbox').forEach(cb => {
+                    const cat = cb.getAttribute('data-cat');
+                    if (cb.checked) {
+                        const limitInput = document.querySelector(`input[data-limit-cat="${cat}"]`);
+                        activeCategories[cat] = parseInt(limitInput.value) || 5;
+                    }
+                });
+                rowObj.categoryObjects = buildCategoryObjects(rowObj.cargoItems, activeCategories);
+                
+                renderPreview(cachedResultRows);
+            }
+        }
+
+        function copyCombinedCargoFormat(blNumber, btnElement) {
+            let rowObj = cachedResultRows.find(r => r.blNumber === blNumber);
+            if (!rowObj) return;
+
+            let lines = [blNumber];
+            if (rowObj.cargoItems && rowObj.cargoItems.length > 0) {
+                rowObj.cargoItems.forEach(item => {
+                    lines.push(item.text);
+                });
+            }
+
+            let combinedText = lines.join('\n');
+
+            navigator.clipboard.writeText(combinedText).then(() => {
+                const originalHtml = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="fa-solid fa-check text-emerald-600"></i> 已複製';
+                btnElement.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.classList.remove('bg-emerald-50', 'text-emerald-700', 'border-emerald-300');
+                }, 1500);
+            }).catch(err => {
+                alert('複製失敗：' + err);
+            });
+        }
+
+        function copyAllCombinedCargoFormat(btnElement) {
+            if (!cachedResultRows || cachedResultRows.length === 0) {
+                alert('目前沒有分析結果可複製！');
+                return;
+            }
+
+            let allLines = [];
+            cachedResultRows.forEach(rowObj => {
+                allLines.push(rowObj.blNumber);
+                if (rowObj.cargoItems && rowObj.cargoItems.length > 0) {
+                    rowObj.cargoItems.forEach(item => {
+                        allLines.push(item.text);
+                    });
+                }
+                allLines.push('');
+            });
+
+            let fullText = allLines.join('\n').trim();
+
+            navigator.clipboard.writeText(fullText).then(() => {
+                const originalHtml = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="fa-solid fa-check"></i> 全部提單已複製！';
+                btnElement.classList.replace('bg-blue-600', 'bg-emerald-600');
+                btnElement.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-700');
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.classList.replace('bg-emerald-600', 'bg-blue-600');
+                    btnElement.classList.replace('hover:bg-emerald-700', 'hover:bg-blue-700');
+                }, 2000);
+            }).catch(err => {
+                alert('複製失敗：' + err);
+            });
+        }
+
+        async function exportUnmappedExcel(shouldTranslate = false) {
+            if (unmappedItemsMap.size === 0) {
+                alert('目前沒有未對應的商品！');
+                return;
+            }
+
+            const progressContainer = document.getElementById('progress-container');
+            
+            let aoa = [
+                ['商品名稱', '可用名稱(請在此填寫)', '貨物種類(請在此填寫)', '總出現數量', '參考海關編碼']
+            ];
+
+            const unmappedList = Array.from(unmappedItemsMap.entries());
+
+            if (shouldTranslate) {
+                progressContainer.classList.remove('hidden');
+                updateProgress(10, '正在平行化發送翻譯請求...');
+
+                const batchSize = 10;
+                for (let i = 0; i < unmappedList.length; i += batchSize) {
+                    const batch = unmappedList.slice(i, i + batchSize);
+                    
+                    const batchResults = await Promise.all(batch.map(async ([itemName, data]) => {
+                        let englishName = await translateChineseToEnglish(itemName);
+                        let aiCategory = aiClassifyCargo(itemName);
+                        return [itemName, englishName, aiCategory, data.totalQty, data.sampleHs];
+                    }));
+
+                    batchResults.forEach(row => aoa.push(row));
+
+                    let pct = Math.floor(10 + Math.min(1, (i + batchSize) / unmappedList.length) * 85);
+                    updateProgress(pct, `正在批次翻譯中 (${Math.min(unmappedList.length, i + batchSize)}/${unmappedList.length})...`);
+                }
+
+                updateProgress(100, '翻譯與未對應商品表匯出完成！');
+            } else {
+                unmappedList.forEach(([itemName, data]) => {
+                    let aiCategory = aiClassifyCargo(itemName);
+                    aoa.push([
+                        itemName,
+                        '',
+                        aiCategory,
+                        data.totalQty,
+                        data.sampleHs
+                    ]);
+                });
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [
+                { wch: 30 },
+                { wch: 30 },
+                { wch: 18 },
+                { wch: 15 },
+                { wch: 18 }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "未對應商品表");
+            
+            const filename = shouldTranslate ? "Unmapped_Items_Translated.xlsx" : "Unmapped_Items.xlsx";
+            XLSX.writeFile(wb, filename);
+
+            if (shouldTranslate) {
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 1000);
+            }
+        }
+
+        function exportExcel() {
+            if (cachedResultRows.length === 0) {
+                alert('目前沒有可匯出的分析資料，請先執行分析！');
+                return;
+            }
+
+            let aoa = [
+                ['提單號', '貨名描述 (強制為可用名稱)', '類別統計']
+            ];
+
+            cachedResultRows.forEach((row) => {
+                let descText = row.cargoItems.map(item => item.text).join('\n');
+                let catText = row.categoryObjects.map(obj => obj.text).join('\n');
+                aoa.push([
+                    row['blNumber'],
+                    descText,
+                    catText
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [
+                { wch: 18 },
+                { wch: 50 },
+                { wch: 40 }
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Result");
+            XLSX.writeFile(wb, "Result.xlsx");
+        }
+
+        // --- 渲染預覽區域 ---
+        function renderPreview(rows) {
+            const tbody = document.getElementById('preview-tbody');
+            tbody.innerHTML = '';
+            
+            rows.forEach(r => {
+                let categoryHtml = r.categoryObjects.map(obj => {
+                    let colors = categoryColorMap[obj.category] || colorPalette[0];
+                    return `<span class="inline-block px-2 py-0.5 my-0.5 rounded-md border ${colors.border} ${colors.bg} ${colors.text} font-medium text-[11px]">${obj.text}</span>`;
+                }).join('<br>');
+
+                let cargoTagsHtml = '';
+                let rawChineseNamesHtml = '';
+
+                if (r.cargoItems && r.cargoItems.length > 0) {
+                    cargoTagsHtml = r.cargoItems.map(item => `
+                        <div class="flex items-center justify-between gap-2 bg-white border border-slate-200 hover:border-blue-400 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 rounded-lg px-2.5 h-[36px] shadow-sm transition group">
+                            <input type="text" value="${item.text.replace(/"/g, '&quot;')}" 
+                                   onchange="updateCargoText('${r.blNumber}', '${item.id}', this.value)"
+                                   class="font-mono text-xs font-medium text-slate-800 bg-transparent border-0 outline-none w-full cursor-text focus:cursor-text"
+                                   title="點擊文字可直接修改英文貨名與 HS Code">
+                            <button onclick="removeCargoItem('${r.blNumber}', '${item.id}')" title="刪除此貨名" class="text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded px-1.5 py-0.5 transition cursor-pointer shrink-0">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                        </div>
+                    `).join('');
+
+                    rawChineseNamesHtml = r.cargoItems.map(item => {
+                        let excelBadgeStyle = item.excelAttr === '未對應' 
+                            ? 'bg-slate-100 text-slate-500 border-slate-300' 
+                            : 'bg-blue-100 text-blue-800 border-blue-300';
+                        
+                        let rawAi = item.aiAttr.replace('AI-', '');
+                        let aiBadgeStyle = 'bg-amber-100 text-amber-800 border-amber-300';
+                        if (rawAi === '危險貨') aiBadgeStyle = 'bg-rose-100 text-rose-800 border-rose-300';
+                        if (rawAi === '受管制貨物') aiBadgeStyle = 'bg-purple-100 text-purple-800 border-purple-300';
+                        if (rawAi === '普貨') aiBadgeStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+
+                        return `
+                        <div class="flex justify-between items-center gap-1.5 bg-white/60 border border-amber-100/80 rounded-lg px-2.5 h-[36px] transition">
+                            <div class="flex items-center gap-1.5 truncate">
+                                <span class="text-[10px] px-1.5 py-0.5 rounded border font-bold shrink-0 ${excelBadgeStyle}" title="來自對應表 Excel 的屬性">${item.excelAttr}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded border font-bold shrink-0 ${aiBadgeStyle}" title="AI 針對品名的風險核對">${item.aiAttr}</span>
+                                <span class="text-xs text-amber-950 font-medium truncate">${item.rawChinese || '-'}</span>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-bold">Qty: ${item.qty}</span>
+                                <button onclick="removeCargoItem('${r.blNumber}', '${item.id}')" title="點擊刪除此貨名" class="text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded px-1.5 py-0.5 transition cursor-pointer">
+                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                } else {
+                    cargoTagsHtml = '<span class="text-slate-400 italic text-xs">無貨名 (或已被全部刪除)</span>';
+                    rawChineseNamesHtml = '<span class="text-slate-400 italic text-xs">無</span>';
+                }
+
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3.5 align-top font-mono font-bold text-slate-800">
+                        <div class="flex flex-col gap-2 items-start">
+                            <span>${r.blNumber}</span>
+                            <button onclick="copyCombinedCargoFormat('${r.blNumber}', this)" class="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer">
+                                <i class="fa-regular fa-copy"></i> 複製單張
+                            </button>
+                        </div>
+                    </td>
+                    <td class="p-3.5 align-top bg-slate-50/50">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center pb-1 border-b border-slate-200/60">
+                                <span class="text-[10px] font-semibold text-slate-400 uppercase">貨名描述 (點擊文字可直接編輯 / 點擊 × 可刪除)</span>
+                            </div>
+                            <div class="space-y-1.5">
+                                ${cargoTagsHtml}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3.5 align-top bg-amber-50/30 border-x border-amber-100">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center pb-1 border-b border-amber-100">
+                                <span class="text-[10px] font-semibold text-amber-600/70 uppercase">對應原始中文 (Excel屬性 / AI核對 / 數量)</span>
+                            </div>
+                            <div class="space-y-1.5">
+                                ${rawChineseNamesHtml}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3.5 align-top text-xs" id="cat-cell-${r.blNumber}">${categoryHtml || '<span class="text-slate-400">無</span>'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('preview-section').classList.remove('hidden');
+        }
+
+        function updateProgress(percent, text) {
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('progress-percent').innerText = percent + '%';
+            document.getElementById('progress-status-text').innerText = text;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function downloadTemplates() {
+            const wb = XLSX.utils.book_new();
+            
+            const mapData = [
+                { '商品名稱': '发圈', '可用名稱': 'hair tie', '貨物種類': '普貨' },
+                { '商品名稱': '3D眼镜', '可用名稱': '3D glasses', '貨物種類': '普貨' },
+                { '商品名稱': '手持风扇', '可用名稱': 'Handheld fan', '貨物種類': 'PI967' },
+                { '商品名稱': 'LED燈珠', '可用名稱': 'LED bulb', '貨物種類': '液體' }
+            ];
+            const wsMap = XLSX.utils.json_to_sheet(mapData);
+            XLSX.utils.book_append_sheet(wb, wsMap, "貨名較對");
+
+            const plData = [
+                { '商品名稱': '发圈', '海关编码': '621710', '數量': 200 },
+                { '商品名稱': '3D眼镜', '海关编码': '900490', '數量': 500 },
+                { '商品名稱': '手持风扇', '海关编码': '841459', '數量': 1200 },
+                { '商品名稱': 'LED燈珠', '海关编码': '853952', '數量': 300 }
+            ];
+            const wsPl = XLSX.utils.json_to_sheet(plData);
+            XLSX.utils.book_append_sheet(wb, wsPl, "PackingList");
+
+            XLSX.writeFile(wb, "AWB_Standard_Templates.xlsx");
+        }
+    </script>
+</body>
+</html>
