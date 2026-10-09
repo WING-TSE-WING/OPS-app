@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EzyCargo 工具 Pro（智能免副檔名＋批量搜尋版）</title>
+<title>EzyCargo 工具 Pro（支援 Word/ZIP/智能免副檔名/批量搜尋）</title>
+<!-- 引入 JSZip 函式庫用於讀取與解壓 .zip 檔 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- 引入 Mammoth.js 用於讀取與解析 Word (.docx) 檔 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
   :root{
     --bg:#f4f6f9; --card:#fff; --text:#0f172a; --muted:#64748b;
@@ -37,7 +41,41 @@
   .kpi .value{ font-size:18px; font-weight:800; margin-top:4px; }
   .kpi .ok{ color:var(--green); } .kpi .partial{ color:var(--amber); } .kpi .fail{ color:var(--red); }
   .input{ border:1px solid var(--line); border-radius:12px; padding:8px 10px; font-size:13px; min-width: 320px; background:#fff; }
+  .textarea{ border:1px solid var(--line); border-radius:12px; padding:8px 10px; font-size:13px; width:100%; min-height:80px; background:#fff; font-family:inherit; resize:vertical; }
   .hint{ font-size:12px; color:var(--muted); line-height:1.55; margin-top:6px; }
+  .notFoundBox{ font-size:12px; color:#991b1b; background:#fee2e2; border:1px solid #fecaca; border-radius:8px; padding:6px 10px; display:none; align-items:center; gap:6px; margin-top:6px; }
+  
+  /* 🆕 優化後的拖拽投放區域樣式 */
+  .drop-zone {
+    border: 2px dashed var(--primary);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    background: #f0f7ff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 12px;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    background: #e0e7ff;
+    border-color: var(--primary2);
+    transform: scale(1.005);
+  }
+  .drop-zone-icon {
+    font-size: 32px;
+    margin-bottom: 4px;
+  }
+  .drop-zone-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .drop-zone-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
   .tableWrap{ padding:0; overflow:hidden; }
   table{ width:100%; border-collapse:collapse; background:#fff; }
   th, td{ padding:10px; border-bottom:1px solid var(--line); vertical-align:top; font-size:13px; }
@@ -61,7 +99,7 @@
           box-shadow:0 10px 30px rgba(0,0,0,.25); display:none; max-width: 360px; font-size:13px; line-height:1.4; z-index:9998; }
   .toast.show{ display:block; animation:pop .15s ease-out; }
   @keyframes pop{ from{ transform:translateY(6px); opacity:.5; } to{ transform:translateY(0); opacity:1; } }
-  .dbgTab{ border:1px solid #cbd5e1; background:#fff; color:#0f172a; padding:6px 10px; border-radius999px; border-radius: 999px; cursor:pointer; font-size:12px; }
+  .dbgTab{ border:1px solid #cbd5e1; background:#fff; color:#0f172a; padding:6px 10px; border-radius: 999px; cursor:pointer; font-size:12px; }
   .dbgTab.active{ background:#1976d2; color:#fff; border-color:#1976d2; }
 </style>
 </head>
@@ -70,18 +108,29 @@
 <div class="container">
 
   <div class="card">
-    <div class="row">
+    <div class="row" style="margin-bottom:12px;">
       <div>
-        <h1>📦 EzyCargo 工具 Pro (智能免副檔名＋多單號批量搜尋版)</h1>
+        <h1>📦 EzyCargo 工具 Pro（支援 Word/ZIP/智能免副檔名/批量搜尋）</h1>
         <p class="sub">
-          <b>🚀 智能解讀：</b>支援直接丟入「無副檔名」檔案！系統自動分析 MIME 特徵流，省去手動改檔名地獄。
+          <b>🚀 智能解讀：</b>支援匯入 Word 檔 (DOCX)、<b>ZIP 壓縮檔</b>、EML/CSV，或直接將內文<b>「貼上 (Ctrl+V)」</b>自動分析。
         </p>
         <p class="sub">
-          <b>🔍 批量過濾：</b>搜尋框支援使用「空格」、「逗號 ,」或「斜線 /」分隔，同時比對、撈出多個提單號碼。
+          <b>🔍 批量過濾：</b>搜尋框支援多單號，搜尋時若有<b>找不到的提單號</b>將自動列出警告提示。
         </p>
       </div>
-      <div class="spacer"></div>
-      <input type="file" multiple class="input" style="min-width:340px" onchange="handleFiles(this.files)">
+    </div>
+
+    <!-- 🆕 優化後的拖拽投放區 (Dropzone) -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-zone-icon">📁</div>
+      <div class="drop-zone-text">點擊此處選擇檔案，或直接將 File 拖曳到這個位置</div>
+      <div class="drop-zone-sub">支援格式：.docx, .zip, .eml, .msg, .csv, .txt</div>
+      <input type="file" id="fileInput" multiple style="display:none" accept=".docx,.zip,.eml,.msg,.csv,.txt" onchange="handleFiles(this.files)">
+    </div>
+
+    <!-- 直接複製貼上資料區塊 -->
+    <div>
+      <textarea id="pasteArea" class="textarea" placeholder="📋 直接貼上文字/郵件內容 (Ctrl + V)... 系統將自動抓取提單資料" oninput="handleDirectPaste()"></textarea>
     </div>
 
     <div class="row" style="margin-top:10px">
@@ -95,7 +144,10 @@
       <div class="spacer"></div>
 
       <!-- 增強型搜尋框提示 -->
-      <input id="q" class="input" placeholder="🔎 批量搜尋（可用空格、逗號分隔多個單號）" oninput="renderAll()">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <input id="q" class="input" placeholder="🔎 批量搜尋（可用空格、逗號分隔多個單號）" oninput="renderAll()">
+        <div id="notFoundBox" class="notFoundBox"></div>
+      </div>
 
       <div class="seg">
         <span class="small"><b>🔘 顯示：</b></span>
@@ -110,13 +162,13 @@
       <button class="btn" style="background:#0284c7;" onclick="exportMawbLinkXLS()">匯出 B：MAWB+Link（標準 CSV 隔開）</button>
       <button class="btn" onclick="exportBlockWord()">匯出 C：Block（Word）</button>
       <button class="btn success" onclick="copyAllBlocksRich()">Copy 全部 Block（含超連結）</button>
-      <!-- ✨ 新增：僅複製搜尋結果按鈕 -->
       <button class="btn success" style="background:#047857;" onclick="copyFilteredBlocksRich()">Copy 搜尋結果 Block（含超連結）</button>
 
       <div class="spacer"></div>
 
       <button class="btn ghost" onclick="copyList('fail')">Copy 失敗清單</button>
-      <button class="btn ghost" onclick="copyList('partial')">Copy 不完整清單</button>
+      <!-- 🆕 修改為 Copy 搜尋不到的提單號 -->
+      <button class="btn ghost" style="background:#fff7ed; color:#c2410c; border:1px solid #ffedd5;" onclick="copyNotFoundList()">Copy 搜尋不到的提單號</button>
       <button class="btn secondary" onclick="clearAll()">清空</button>
     </div>
 
@@ -205,6 +257,7 @@ let failedEntries = [];
 let partialEntries = [];            
 let currentFilter = 'all';
 let dbgCurrent = null;
+let pasteCounter = 0;
 
 const tb = document.getElementById('tb');
 const status = document.getElementById('status');
@@ -220,6 +273,31 @@ function toast(msg){
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
+
+/* =============== 🆕 拖拽上傳事件綁定 =============== */
+const dropZone = document.getElementById('dropZone');
+
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('dragover');
+  }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('dragover');
+  }, false);
+});
+
+dropZone.addEventListener('drop', (e) => {
+  const dt = e.dataTransfer;
+  const files = dt.files;
+  handleFiles(files);
+});
 
 /* =============== basic utils =============== */
 function escapeHtml(s){
@@ -384,31 +462,37 @@ function buildCanonicalLinkFromText(text){
   }
   return '';
 }
+
 function extractAllBlocks(text){
   const src = decodeEntities(String(text||'').replace(/\r/g,''));
-  const lines = src.split('\n');
+  
+  const regex = /(?:Air\s*Waybill\s*Co-loaded\s*by\s*([^\n\r]+)[\s\S]*?)?Air\s*Waybill\s*No\.\s*:\s*(\d{3}-\d{8})[\s\S]*?EzyCargo\s*Activation\s*Key\s*:\s*([A-F0-9]+)[\s\S]*?(https:\/\/www\.ezycargo\.com\/[^\s\r\n]+)/gi;
+  
   const blocks = [];
-  let buf = null;
+  let match;
 
-  function flush(){
-    if (!buf) return;
-    const raw = buf.join('\n').trim();
-    if (raw) blocks.push(raw);
-    buf = null;
-  }
-
-  for (let i=0;i<lines.length;i++){
-    const t = lines[i].trim();
-    if (!t) continue;
-    if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(t)){
-      flush(); buf = [t]; continue;
+  while ((match = regex.exec(src)) !== null) {
+    const rawMatch = match[0].trim();
+    if (isValidBlock(rawMatch)) {
+      blocks.push(rawMatch);
     }
-    if (!buf) continue;
-    if (/Important\s+Notice/i.test(t)){ flush(); continue; }
-    if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(t)){ flush(); buf=[t]; continue; }
-    buf.push(t);
   }
-  flush();
+
+  if (blocks.length === 0) {
+    const lines = src.split('\n');
+    let buf = null;
+    for (let i=0;i<lines.length;i++){
+      const t = lines[i].trim();
+      if (!t) continue;
+      if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(t) || /Air\s+Waybill\s+No\./i.test(t)){
+        if(buf && isValidBlock(buf.join('\n'))) blocks.push(buf.join('\n').trim());
+        buf = [t]; continue;
+      }
+      if (!buf) continue;
+      buf.push(t);
+    }
+    if (buf && isValidBlock(buf.join('\n'))) blocks.push(buf.join('\n').trim());
+  }
 
   return blocks.map(b=>{
     const c = normalizeLink(buildCanonicalLinkFromText(b)) || '';
@@ -423,6 +507,7 @@ function extractAllBlocks(text){
     return replaced ? lines2.join('\n') : (b + '\n' + c);
   }).filter(isValidBlock);
 }
+
 function isValidBlock(block){
   if (!/Air\s*Waybill\s*No\.\s*:\s*[0-9]{3}-[0-9]{8}/i.test(block)) return false;
   if (!/Activation\s*Key/i.test(block)) return false;
@@ -455,27 +540,146 @@ function parseCSV(text) {
     if (inQuotes) {
       if (ch === '"') {
         if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
-        inQuotes = false; i++; continue;
-      } else { field += ch; i++; continue; }
+        inQuotes = false; i++; continue; } else { field += ch; i++; continue; }
     } else {
       if (ch === '"') { inQuotes = true; i++; continue; }
       if (ch === ',') { row.push(field); field = ''; i++; continue; }
       if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
-      field += ch; i++; continue;
-    }
+      field += ch; i++; continue; }
   }
   if (field || row.length) { row.push(field); rows.push(row); }
   return rows;
 }
 
-/* =============== 智能分流與無副檔名偵測功能 =============== */
+/* =============== 直接貼上內容處理 =============== */
+let pasteDebounceTimer = null;
+function handleDirectPaste(){
+  clearTimeout(pasteDebounceTimer);
+  pasteDebounceTimer = setTimeout(() => {
+    const textarea = document.getElementById('pasteArea');
+    const rawText = textarea.value;
+    if(!rawText.trim()) return;
+
+    pasteCounter++;
+    const sourceName = `直接貼上文字 #${pasteCounter}`;
+    processRawTextContent(rawText, sourceName);
+    
+    textarea.value = '';
+    toast(`✅ 已自動解析並擷取貼上內容`);
+  }, 400);
+}
+
+function processRawTextContent(raw, sourceName){
+  const cleanedFull = normalizeAnyText(raw);
+  const split = splitReplyChain(cleanedFull);
+  const cleanedMain = split.main || cleanedFull;
+  const blocks = extractAllBlocks(cleanedMain);
+
+  if (!blocks.length){
+    const id = pushItem({
+      file: sourceName, mawb:'', link:'', block:'', status:'fail',
+      reason: split.detected ? `未抽到區塊 (已切離回覆鏈: ${split.marker})` : '未抽到區塊 (格式不符)',
+      _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: raw.slice(0, 1000)
+    });
+    failedEntries.push({ name: sourceName, id });
+    renderAll();
+    return;
+  }
+
+  blocks.forEach((block, idx)=>{
+    const mawb = extractMawbFromBlock(block);
+    const link = extractLinkFromBlock(block);
+    const cls = classifyResult(block, mawb, link);
+    const name = blocks.length > 1 ? `${sourceName}#${idx+1}` : sourceName;
+    const id = pushItem({
+      file: name, mawb, link, block, status: cls.status, reason: cls.reason + (split.detected ? '（已忽略回覆鏈）' : ''),
+      _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: raw.slice(0, 1000)
+    });
+    if (cls.status==='partial') partialEntries.push({ name, id });
+  });
+  renderAll();
+}
+
+/* =============== Word (.docx) 檔案處理 =============== */
+function handleDocxFile(file) {
+  if (typeof mammoth === 'undefined') {
+    alert('Mammoth.js 載入失敗，請確認網路連線是否可存取 cdnjs。');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const arrayBuffer = e.target.result;
+    
+    mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+      .then(function(result) {
+        const rawText = result.value;
+        if (!rawText.trim()) {
+          toast(`⚠️ Word 檔案 [${file.name}] 內容為空`);
+          return;
+        }
+        toast(`📄 成功讀取 Word：${file.name}，開始解析提單資料...`);
+        processEmlOrRawText(rawText, file.name);
+      })
+      .catch(function(err) {
+        console.error('解析 Word 檔失敗:', err);
+        alert(`無法讀取 Word 檔案 [${file.name}]，請確定是否為有效的 .docx 格式。`);
+      });
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* =============== ZIP 壓縮檔處理核心 =============== */
+function handleZipFile(file) {
+  if (typeof JSZip === 'undefined') {
+    alert('JSZip 載入失敗，請確認網路連線是否可存取 cdnjs。');
+    return;
+  }
+
+  JSZip.loadAsync(file).then(zip => {
+    toast(`📦 成功讀取 ZIP：${file.name}，正在解壓並解析內容...`);
+    
+    zip.forEach((relativePath, zipEntry) => {
+      if (zipEntry.dir || relativePath.startsWith('__MACOSX/')) return;
+
+      const pathLower = relativePath.toLowerCase();
+      const displayName = `${file.name}/${relativePath}`;
+
+      if (pathLower.endsWith('.docx')) {
+        zipEntry.async('arraybuffer').then(arrayBuffer => {
+          mammoth.extractRawText({ arrayBuffer: arrayBuffer }).then(res => {
+            processEmlOrRawText(res.value, displayName);
+          });
+        });
+      } else {
+        zipEntry.async('string').then(rawText => {
+          if (pathLower.endsWith('.csv')) {
+            processCsvText(rawText, displayName);
+          } else {
+            processEmlOrRawText(rawText, displayName);
+          }
+        }).catch(err => {
+          console.error('解壓檔案失敗:', relativePath, err);
+        });
+      }
+    });
+  }).catch(err => {
+    alert(`無法解壓 ZIP 檔案 [${file.name}]，可能檔案已損毀：` + err.message);
+  });
+}
+
+/* =============== 檔案分流與識別 =============== */
 function handleFiles(files){
   if (!files || !files.length) return;
   toast(`已選擇 ${files.length} 個檔案，開始智能識別…`);
   
   for (const f of files){
     const lower = (f.name || '').toLowerCase();
-    if (lower.endsWith('.csv')) {
+    if (lower.endsWith('.zip')) {
+      handleZipFile(f);
+    } else if (lower.endsWith('.docx')) {
+      handleDocxFile(f);
+    } else if (lower.endsWith('.csv')) {
       handleCsvFile(f);
     } else if (lower.endsWith('.eml') || lower.endsWith('.msg')) {
       handleEmlFile(f);
@@ -503,94 +707,97 @@ function sniffUnknownFile(file) {
   reader.readAsText(chunk);
 }
 
-function handleEmlFile(file){
-  const reader = new FileReader();
-  reader.onload = e => {
-    const raw = String(e.target.result || '');
-    const rawSliceForDbg = raw.slice(0, 50000);
-    const parts = extractBodiesFromEml(raw);
-    const decodedBodies = parts.map(p=>{
-      const d = decodePartBody(p);
-      return { type:p.type, text: normalizeAnyText(d) };
-    });
+/* =============== 共用文字處理邏輯 =============== */
+function processEmlOrRawText(raw, filename) {
+  const rawSliceForDbg = raw.slice(0, 50000);
+  const parts = extractBodiesFromEml(raw);
+  const decodedBodies = parts.map(p=>{
+    const d = decodePartBody(p);
+    return { type:p.type, text: normalizeAnyText(d) };
+  });
 
-    let cleanedFull = ''; let bestScore = -1;
-    decodedBodies.forEach(b=>{
-      let sc = 0;
-      if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(b.text)) sc += 5;
-      if (/AnonymousLogin\.aspx/i.test(b.text)) sc += 3;
-      if (sc > bestScore){ bestScore = sc; cleanedFull = b.text; }
-    });
-    if (!cleanedFull || bestScore < 2) cleanedFull = normalizeAnyText(raw);
+  let cleanedFull = ''; let bestScore = -1;
+  decodedBodies.forEach(b=>{
+    let sc = 0;
+    if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(b.text) || /Air\s+Waybill\s+No\./i.test(b.text)) sc += 5;
+    if (/AnonymousLogin\.aspx/i.test(b.text)) sc += 3;
+    if (sc > bestScore){ bestScore = sc; cleanedFull = b.text; }
+  });
+  if (!cleanedFull || bestScore < 2) cleanedFull = normalizeAnyText(raw);
 
+  const split = splitReplyChain(cleanedFull);
+  const cleanedMain = split.main || cleanedFull;
+  const blocks = extractAllBlocks(cleanedMain);
+
+  if (!blocks.length){
+    const id = pushItem({
+      file: filename, mawb:'', link:'', block:'', status:'fail',
+      reason: split.detected ? `未抽到區塊 (已切離回覆鏈: ${split.marker})` : '未抽到區塊 (格式不符)',
+      _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: rawSliceForDbg
+    });
+    failedEntries.push({ name: filename, id });
+    renderAll(); return;
+  }
+
+  blocks.forEach((block, idx)=>{
+    const mawb = extractMawbFromBlock(block);
+    const link = extractLinkFromBlock(block);
+    const cls = classifyResult(block, mawb, link);
+    const name = blocks.length>1 ? `${filename}#${idx+1}` : filename;
+    const id = pushItem({
+      file: name, mawb, link, block, status:cls.status, reason: cls.reason + (split.detected ? '（已忽略回覆鏈）' : ''),
+      _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: rawSliceForDbg
+    });
+    if (cls.status==='partial') partialEntries.push({ name, id });
+  });
+  renderAll();
+}
+
+function processCsvText(raw, filename) {
+  const rows = parseCSV(raw);
+  rows.forEach((cols, r) => {
+    if (cols.length === 0 || (cols.length === 1 && !cols[0].trim())) return;
+    const blobRaw = cols.join('\n');
+    const cleanedFull = normalizeAnyText(blobRaw);
     const split = splitReplyChain(cleanedFull);
     const cleanedMain = split.main || cleanedFull;
+    const baseName = `${filename}#row${r+1}`;
     const blocks = extractAllBlocks(cleanedMain);
 
     if (!blocks.length){
-      const id = pushItem({
-        file:file.name, mawb:'', link:'', block:'', status:'fail',
-        reason: split.detected ? `未抽到區塊 (已切離回覆鏈: ${split.marker})` : '未抽到區塊 (格式不符)',
-        _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: rawSliceForDbg
-      });
-      failedEntries.push({ name: file.name, id });
-      renderAll(); return;
+      if (/Waybill|Ezy|Cargo/i.test(blobRaw)) {
+        const id = pushItem({
+          file: baseName, mawb:'', link:'', block:'', status:'fail', reason: '該列未抽到有效區塊',
+          _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: blobRaw.slice(0, 1000)
+        });
+        failedEntries.push({ name: baseName, id });
+      }
+      return;
     }
-
     blocks.forEach((block, idx)=>{
       const mawb = extractMawbFromBlock(block);
       const link = extractLinkFromBlock(block);
       const cls = classifyResult(block, mawb, link);
-      const name = blocks.length>1 ? `${file.name}#${idx+1}` : file.name;
+      const name = blocks.length>1 ? `${baseName}#${idx+1}` : baseName;
       const id = pushItem({
-        file:name, mawb, link, block, status:cls.status, reason: cls.reason + (split.detected ? '（已忽略回覆鏈）' : ''),
-        _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: rawSliceForDbg
+        file: name, mawb, link, block, status:cls.status, reason: cls.reason,
+        _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: blobRaw.slice(0, 2000)
       });
       if (cls.status==='partial') partialEntries.push({ name, id });
     });
-    renderAll();
-  };
+  });
+  renderAll();
+}
+
+function handleEmlFile(file){
+  const reader = new FileReader();
+  reader.onload = e => processEmlOrRawText(String(e.target.result || ''), file.name);
   reader.readAsText(file);
 }
 
 function handleCsvFile(file){
   const reader = new FileReader();
-  reader.onload = e => {
-    const raw = String(e.target.result || '');
-    const rows = parseCSV(raw);
-    rows.forEach((cols, r) => {
-      if (cols.length === 0 || (cols.length === 1 && !cols[0].trim())) return;
-      const blobRaw = cols.join('\n');
-      const cleanedFull = normalizeAnyText(blobRaw);
-      const split = splitReplyChain(cleanedFull);
-      const cleanedMain = split.main || cleanedFull;
-      const baseName = `${file.name}#row${r+1}`;
-      const blocks = extractAllBlocks(cleanedMain);
-
-      if (!blocks.length){
-        if (/Waybill|Ezy|Cargo/i.test(blobRaw)) {
-          const id = pushItem({
-            file: baseName, mawb:'', link:'', block:'', status:'fail', reason: '該列未抽到有效區塊',
-            _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: blobRaw.slice(0, 1000)
-          });
-          failedEntries.push({ name: baseName, id });
-        }
-        return;
-      }
-      blocks.forEach((block, idx)=>{
-        const mawb = extractMawbFromBlock(block);
-        const link = extractLinkFromBlock(block);
-        const cls = classifyResult(block, mawb, link);
-        const name = blocks.length>1 ? `${baseName}#${idx+1}` : baseName;
-        const id = pushItem({
-          file:name, mawb, link, block, status:cls.status, reason: cls.reason,
-          _cleanedFull: cleanedFull, _cleanedMain: cleanedMain, _replyDetected: split.detected, _replyMarker: split.marker, _replyIgnoredLen: split.tail.length, _rawSlice: blobRaw.slice(0, 2000)
-        });
-        if (cls.status==='partial') partialEntries.push({ name, id });
-      });
-    });
-    renderAll();
-  };
+  reader.onload = e => processCsvText(String(e.target.result || ''), file.name);
   reader.readAsText(file);
 }
 
@@ -609,11 +816,31 @@ function setFilter(mode){
   renderAll();
 }
 
-function matchQuery(it){
+function getQueryKeywords(){
   const q = (document.getElementById('q').value || '').trim().toLowerCase();
-  if (!q) return true;
-  
-  const keywords = q.split(/[\s,，／\/]+/).filter(k => k.length > 0);
+  if (!q) return [];
+  return q.split(/[\s,，／\/]+/).filter(k => k.length > 0);
+}
+
+function getNotFoundKeywords(){
+  const keywords = getQueryKeywords();
+  if (keywords.length === 0 || items.length === 0) return [];
+
+  const notFoundList = [];
+  keywords.forEach(kw => {
+    const isFound = items.some(it => {
+      const searchString = [it.file, it.mawb, it.link, it.reason].join(' ').toLowerCase();
+      return searchString.includes(kw);
+    });
+    if(!isFound) {
+      notFoundList.push(kw);
+    }
+  });
+  return notFoundList;
+}
+
+function matchQuery(it){
+  const keywords = getQueryKeywords();
   if (keywords.length === 0) return true;
 
   const searchString = [it.file, it.mawb, it.link, it.reason].join(' ').toLowerCase();
@@ -624,6 +851,19 @@ function matchFilter(it){
   if (currentFilter === 'error') return it.status !== 'ok';
   if (currentFilter === 'ok') return it.status === 'ok';
   return true;
+}
+
+function checkNotFoundKeywords(){
+  const notFoundBox = document.getElementById('notFoundBox');
+  const notFoundList = getNotFoundKeywords();
+
+  if (notFoundList.length > 0) {
+    notFoundBox.style.display = 'flex';
+    notFoundBox.innerHTML = `⚠️ <b>找不到以下單號：</b> ${notFoundList.map(x => `<code>${escapeHtml(x)}</code>`).join(', ')}`;
+  } else {
+    notFoundBox.style.display = 'none';
+    notFoundBox.innerHTML = '';
+  }
 }
 
 function rowHtml(it){
@@ -666,9 +906,19 @@ function renderAll(){
   const okLen = items.filter(x=>x.status==='ok').length;
   kOk.textContent = okLen; kPartial.textContent = partialEntries.length; kFail.textContent = failedEntries.length; kTotal.textContent = items.length;
   status.innerHTML = `📊 狀態快報：成功 <b>${okLen}</b> 筆 ｜ 不完整 <b>${partialEntries.length}</b> 筆 ｜ 失敗 <b>${failedEntries.length}</b> 筆`;
+
+  checkNotFoundKeywords();
 }
 
-function clearAll(){ items.length = 0; renderAll(); toast('資料庫已清空'); }
+function clearAll(){ 
+  items.length = 0; 
+  pasteCounter = 0;
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('q').value = '';
+  document.getElementById('fileInput').value = '';
+  renderAll(); 
+  toast('資料庫已清空'); 
+}
 
 /* =============== 數據匯出與進階富文本複製功能 =============== */
 function linkifyHtmlFromText(text){
@@ -696,9 +946,7 @@ async function copyAllBlocksRich(){
   } catch { navigator.clipboard.writeText(plainText); toast('已降級複製純文字'); }
 }
 
-/* ✨ 新增：只複製目前被搜尋過濾出來的區塊內容（含超連結） */
 async function copyFilteredBlocksRich(){
-  // 同步畫面的過濾與搜尋邏輯，撈出當前符合的項目
   const matchedItems = items.filter(it => matchFilter(it) && matchQuery(it) && it.block);
   if (!matchedItems.length) return toast('🔍 當前搜尋結果中無有效區塊可複製');
 
@@ -721,6 +969,15 @@ function copyList(st) {
   const target = items.filter(x=>x.status === st).map(x=>`${x.file}\t${x.reason}`).join('\n');
   if(!target) return toast('無資料可複製');
   navigator.clipboard.writeText(target); toast(`已複製清單`);
+}
+
+/* 🆕 Copy 搜尋不到的提單號功能 */
+function copyNotFoundList(){
+  const notFoundList = getNotFoundKeywords();
+  if (!notFoundList.length) return toast('無找不到的提單號');
+  const text = notFoundList.join('\n');
+  navigator.clipboard.writeText(text);
+  toast(`已複製 ${notFoundList.length} 個搜尋不到的單號`);
 }
 
 function triggerDownload(blob, filename) {
@@ -771,11 +1028,11 @@ function openDbgById(id){
 
   let tips = "<h4>🔍 系統深度診斷分析：</h4>";
   if (it.status === 'ok') {
-    tips += `<p style="color:var(--green)"><b>🎉 解析成功！</b><br>已正確提取出 Co-loaded 區塊，單號與連結欄位分流完全正確。</p>`;
+    tips += `<p style="color:var(--green)"><b>🎉 解析成功！</b><br>已正確提取出區塊，單號與連結欄位分流完全正確。</p>`;
   } else if (it.status === 'partial') {
-    tips += `<p style="color:var(--amber)"><b>⚠️ 欄位不完整提示：</b><br>已找到區塊，但資訊有缺失：<br>👉 異常狀態：<span class="badge fail">${escapeHtml(it.reason)}</span><br>請至【最新內容】分頁確認內容格式是否遭到特殊字元截換。</p>`;
+    tips += `<p style="color:var(--amber)"><b>⚠️ 欄位不完整提示：</b><br>已找到區塊，但資訊有缺失：<br>👉 異常狀態：<span class="badge fail">${escapeHtml(it.reason)}</span><br>請至【最新內容】分頁確認內容格式是否遭到特殊字元截斷。</p>`;
   } else {
-    tips += `<p style="color:var(--red)"><b>❌ 區塊提取失敗：</b><br>全文未偵測到 <code>Air Waybill Co-loaded by</code> 關鍵字結構。</p>`;
+    tips += `<p style="color:var(--red)"><b>❌ 區塊提取失敗：</b><br>全文未偵測到 <code>Air Waybill No.</code> 與 <code>EzyCargo Activation Key</code> 等關鍵結構。</p>`;
   }
   document.getElementById('dbgPaneTips').innerHTML = tips;
   document.getElementById('dbgPaneMain').textContent = it._cleanedMain || '無內容';
