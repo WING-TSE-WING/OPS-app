@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EzyCargo 工具 Pro v13（完美修復連結截斷問題）</title>
+<title>EzyCargo 工具 Pro v14（完美修復 Block 網址格式）</title>
 <!-- 引入 JSZip 函式庫用於讀取與解壓 .zip 檔 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- 引入 Mammoth.js 用於讀取與解析 Word (.docx) 檔 -->
@@ -97,7 +97,7 @@
   <div class="card">
     <div class="row" style="margin-bottom:12px;">
       <div>
-        <h1>📦 EzyCargo 工具 Pro v13（完美修復連結截斷問題）</h1>
+        <h1>📦 EzyCargo 工具 Pro v14（完美修復 Block 網址格式）</h1>
         <p class="sub">
           <b>🚀 智能解讀：</b>支援匯入 Word 檔 (DOCX)、<b>ZIP 壓縮檔</b>、EML/CSV，或直接將內文<b>「貼上 (Ctrl+V)」</b>自動分析。
         </p>
@@ -349,7 +349,7 @@ const REPLY_MARKERS = [
   /(^|\n)\s*日\s*期[:：]\s*.+/i,
   /(^|\n)\s*收件人[:：]\s*.+/i,
   /(^|\n)\s*主\s*题[:：]\s*.+/i,
-  /(^|\n)\s*抄\s*ส่ง[:：]\s*.+/i,
+  /(^|\n)\s*抄\s*送[:：]\s*.+/i,
   /(^|\n)\s*-{20,}\s*($|\n)/,        
   /(^|\n)\s*_{20,}\s*($|\n)/         
 ];
@@ -433,31 +433,28 @@ function decodePartBody(part){
   return body;
 }
 
-/* =============== 核心修復：強制重建完整且帶參數的標準網址 =============== */
+/* =============== 核心：建構標準與乾淨的完整網址 =============== */
 function buildCanonicalLinkFromText(text){
   let t = decodeEntities(String(text || ''));
-  // 清洗郵件斷行、空白與所有 =3D 編碼
   t = t.replace(/=\r?\n/g, '').replace(/\r?\n/g, '').replace(/=3D/g, '=');
 
-  // 直接從文字中精準擷取各個必要參數
   const p = (t.match(/\bAWBPrefix\s*=\s*([0-9]{3})\b/i) || [])[1] || '';
   const n = (t.match(/\bAWBNum\s*=\s*([0-9]{8})\b/i) || [])[1] || '';
   const k = (t.match(/\bAccessKey\s*=\s*([A-Za-z0-9]+)\b/i) || [])[1] || '';
   const c = (t.match(/\bPromoCity\s*=\s*([A-Za-z]{3})\b/i) || [])[1] || 'HKG';
 
-  // 如果參數完整，直接拼湊出乾淨、完整的網址
   if (p && n && k) {
     return `https://www.ezycargo.com/ezycargo/usrapps/Login/AnonymousLogin.aspx?AWBPrefix=${p}&AWBNum=${n}&AccessKey=${k}&PromoCity=${c}`;
   }
 
-  // 備用：若找不到獨立參數，嘗試直接找網址並把後面殘留的 = 符號或斷行清掉
   const urlMatch = t.match(/https?:\/\/[^\s<>"]+AnonymousLogin\.aspx[^\s<>"]+/i);
   if (urlMatch) {
     let cleanUrl = urlMatch[0];
     while (cleanUrl.includes('=3D')) cleanUrl = cleanUrl.replaceAll('=3D', '=');
-    // 去除結尾可能多餘的符號或空白
     cleanUrl = cleanUrl.replace(/[\s>="]+$/, '');
-    return normalizeLink(cleanUrl);
+    // 移除重複串接產生的多餘參數
+    if (cleanUrl.includes('&amp;')) cleanUrl = normalizeLink(cleanUrl);
+    return cleanUrl;
   }
 
   return '';
@@ -466,68 +463,71 @@ function buildCanonicalLinkFromText(text){
 function extractAllBlocks(text){
   const src = decodeEntities(String(text||'').replace(/\r/g,''));
   
-  // 透過寬鬆的結構抓取每一個提單區塊
-  const lines = src.split('\n');
+  const regex = /(?:Air\s*Waybill\s*Co-loaded\s*by\s*([^\n\r]+)[\s\S]*?)?Air\s*Waybill\s*No\.\s*:\s*(\d{3}-\d{8})[\s\S]*?EzyCargo\s*Activation\s*Key\s*:\s*([A-F0-9]+)/gi;
+  
   const blocks = [];
-  let buf = [];
-  let capturing = false;
+  let match;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (/Air\s*Waybill\s*No\./i.test(line) || /Air\s*Waybill\s*Co-loaded\s*by/i.test(line)) {
-      if (buf.length > 0 && isValidBlock(buf.join('\n'))) {
-        blocks.push(buf.join('\n').trim());
-      }
-      buf = [line];
-      capturing = true;
-      continue;
-    }
-    if (capturing) {
-      buf.push(line);
-      // 如果遇到下一個單號或結尾，可以切分，此處簡單以累積一定行數或空白行控制
-      if (buf.length > 25) {
-        if (isValidBlock(buf.join('\n'))) {
-          blocks.push(buf.join('\n').trim());
-        }
-        buf = [];
-        capturing = false;
-      }
-    }
-  }
-  if (buf.length > 0 && isValidBlock(buf.join('\n'))) {
-    blocks.push(buf.join('\n').trim());
-  }
-
-  // 若上方區塊法沒抓到，改用全域正規表達式備用
-  if (blocks.length === 0) {
-    const regex = /Air\s*Waybill\s*No\.\s*:\s*[0-9]{3}-[0-9]{8}[\s\S]*?(?:https?:\/\/|AWBPrefix)[^\r\n]+/gi;
-    let m;
-    while ((m = regex.exec(src)) !== null) {
-      if (isValidBlock(m[0])) blocks.push(m[0].trim());
-    }
-  }
-
-  // 確保每一個區塊內部的連結都被替換成重建後的完整標準網址
-  return blocks.map(b => {
-    const canonical = buildCanonicalLinkFromText(b);
-    if (!canonical) return b;
+  while ((match = regex.exec(src)) !== null) {
+    const rawHeader = match[0].trim();
+    const mawb = match[2];
     
-    // 將區塊內的網址替換為完整網址
-    let lines2 = b.split('\n');
-    let replaced = false;
-    for (let j = 0; j < lines2.length; j++) {
-      if (/AnonymousLogin\.aspx/i.test(lines2[j]) || /AWBPrefix/i.test(lines2[j])) {
-        lines2[j] = canonical;
-        replaced = true;
+    // 從全文中找出對應這筆單號的完整 Link
+    const subText = src.slice(match.index, match.index + 800);
+    const canonicalLink = buildCanonicalLinkFromText(subText);
+
+    if (mawb && canonicalLink) {
+      // 組合出你期望的乾淨區塊格式
+      let coLoadedLine = match[1] ? `Air Waybill Co-loaded by ${match[1].trim()}` : '';
+      let formattedBlock = [
+        coLoadedLine,
+        `Air Waybill No.: ${mawb}`,
+        `EzyCargo Activation Key: ${match[3]}`,
+        '',
+        canonicalLink
+      ].filter(Boolean).join('\n');
+
+      blocks.push(formattedBlock);
+    }
+  }
+
+  if (blocks.length === 0) {
+    // 備用解析邏輯
+    const lines = src.split('\n');
+    let buf = [];
+    for (let i=0; i<lines.length; i++){
+      const t = lines[i].trim();
+      if (/Air\s+Waybill\s+No\./i.test(t)){
+        if(buf.length > 0) {
+          let bStr = buf.join('\n');
+          let link = buildCanonicalLinkFromText(bStr);
+          let mMat = bStr.match(/([0-9]{3}-[0-9]{8})/);
+          let kMat = bStr.match(/Activation\s*Key\s*:\s*([A-F0-9]+)/i);
+          if (link && mMat && kMat) {
+            blocks.push(`Air Waybill No.: ${mMat[1]}\nEzyCargo Activation Key: ${kMat[1]}\n\n${link}`);
+          }
+        }
+        buf = [t]; continue;
+      }
+      if (buf.length > 0) buf.push(t);
+    }
+    if(buf.length > 0) {
+      let bStr = buf.join('\n');
+      let link = buildCanonicalLinkFromText(bStr);
+      let mMat = bStr.match(/([0-9]{3}-[0-9]{8})/);
+      let kMat = bStr.match(/Activation\s*Key\s*:\s*([A-F0-9]+)/i);
+      if (link && mMat && kMat) {
+        blocks.push(`Air Waybill No.: ${mMat[1]}\nEzyCargo Activation Key: ${kMat[1]}\n\n${link}`);
       }
     }
-    return replaced ? lines2.join('\n') : (b + '\n' + canonical);
-  }).filter(isValidBlock);
+  }
+
+  return blocks.filter(isValidBlock);
 }
 
 function isValidBlock(block){
   if (!/Air\s*Waybill\s*No\.\s*:\s*[0-9]{3}-[0-9]{8}/i.test(block)) return false;
-  return /AnonymousLogin\.aspx/i.test(block) || /\bAWBPrefix\s*=\s*[0-9]{3}\b/i.test(block) || /\bAccessKey\b/i.test(block);
+  return /AnonymousLogin\.aspx/i.test(block) && /AWBNum=/.test(block);
 }
 
 function extractMawbFromBlock(block){
@@ -536,7 +536,8 @@ function extractMawbFromBlock(block){
 }
 
 function extractLinkFromBlock(block){
-  return normalizeLink(buildCanonicalLinkFromText(block));
+  const m = String(block||'').match(/https?:\/\/\S*AnonymousLogin\.aspx\?\S+/i);
+  return m ? normalizeLink(m[0]) : '';
 }
 
 function classifyResult(block, mawb, link){
