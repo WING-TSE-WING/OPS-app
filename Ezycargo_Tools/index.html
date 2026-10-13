@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EzyCargo 工具 Pro（支援 Word/ZIP/智能免副檔名/批量搜尋）</title>
+<title>EzyCargo 工具 Pro v13（完美修復連結截斷問題）</title>
 <!-- 引入 JSZip 函式庫用於讀取與解壓 .zip 檔 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- 引入 Mammoth.js 用於讀取與解析 Word (.docx) 檔 -->
@@ -45,7 +45,6 @@
   .hint{ font-size:12px; color:var(--muted); line-height:1.55; margin-top:6px; }
   .notFoundBox{ font-size:12px; color:#991b1b; background:#fee2e2; border:1px solid #fecaca; border-radius:8px; padding:6px 10px; display:none; align-items:center; gap:6px; margin-top:6px; }
   
-  /* 🆕 優化後的拖拽投放區域樣式 */
   .drop-zone {
     border: 2px dashed var(--primary);
     border-radius: var(--radius);
@@ -61,20 +60,9 @@
     border-color: var(--primary2);
     transform: scale(1.005);
   }
-  .drop-zone-icon {
-    font-size: 32px;
-    margin-bottom: 4px;
-  }
-  .drop-zone-text {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--primary);
-  }
-  .drop-zone-sub {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 4px;
-  }
+  .drop-zone-icon { font-size: 32px; margin-bottom: 4px; }
+  .drop-zone-text { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .drop-zone-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
   .tableWrap{ padding:0; overflow:hidden; }
   table{ width:100%; border-collapse:collapse; background:#fff; }
@@ -88,7 +76,6 @@
   .badge.partial{ background:#ffedd5; color:#9a3412; border-color:#fed7aa; }
   .badge.fail{ background:#fee2e2; color:#991b1b; border-color:#fecaca; }
   tr.failRow{ background:#fff1f2; } tr.partialRow{ background:#fffbeb; }
-  tr.failRow:hover{ background:#ffe4e6; } tr.partialRow:hover{ background:#fef3c7; }
   .op{ white-space:nowrap; display: flex; gap: 4px; }
   .small{ font-size:12px; color:var(--muted); }
   .split{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 12px; }
@@ -110,7 +97,7 @@
   <div class="card">
     <div class="row" style="margin-bottom:12px;">
       <div>
-        <h1>📦 EzyCargo 工具 Pro（支援 Word/ZIP/智能免副檔名/批量搜尋）</h1>
+        <h1>📦 EzyCargo 工具 Pro v13（完美修復連結截斷問題）</h1>
         <p class="sub">
           <b>🚀 智能解讀：</b>支援匯入 Word 檔 (DOCX)、<b>ZIP 壓縮檔</b>、EML/CSV，或直接將內文<b>「貼上 (Ctrl+V)」</b>自動分析。
         </p>
@@ -120,7 +107,6 @@
       </div>
     </div>
 
-    <!-- 🆕 優化後的拖拽投放區 (Dropzone) -->
     <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
       <div class="drop-zone-icon">📁</div>
       <div class="drop-zone-text">點擊此處選擇檔案，或直接將 File 拖曳到這個位置</div>
@@ -128,7 +114,6 @@
       <input type="file" id="fileInput" multiple style="display:none" accept=".docx,.zip,.eml,.msg,.csv,.txt" onchange="handleFiles(this.files)">
     </div>
 
-    <!-- 直接複製貼上資料區塊 -->
     <div>
       <textarea id="pasteArea" class="textarea" placeholder="📋 直接貼上文字/郵件內容 (Ctrl + V)... 系統將自動抓取提單資料" oninput="handleDirectPaste()"></textarea>
     </div>
@@ -143,7 +128,6 @@
 
       <div class="spacer"></div>
 
-      <!-- 增強型搜尋框提示 -->
       <div style="display:flex; flex-direction:column; gap:4px;">
         <input id="q" class="input" placeholder="🔎 批量搜尋（可用空格、逗號分隔多個單號）" oninput="renderAll()">
         <div id="notFoundBox" class="notFoundBox"></div>
@@ -167,7 +151,6 @@
       <div class="spacer"></div>
 
       <button class="btn ghost" onclick="copyList('fail')">Copy 失敗清單</button>
-      <!-- 🆕 修改為 Copy 搜尋不到的提單號 -->
       <button class="btn ghost" style="background:#fff7ed; color:#c2410c; border:1px solid #ffedd5;" onclick="copyNotFoundList()">Copy 搜尋不到的提單號</button>
       <button class="btn secondary" onclick="clearAll()">清空</button>
     </div>
@@ -274,7 +257,7 @@ function toast(msg){
   window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-/* =============== 🆕 拖拽上傳事件綁定 =============== */
+/* =============== 拖拽上傳事件綁定 =============== */
 const dropZone = document.getElementById('dropZone');
 
 ['dragenter', 'dragover'].forEach(eventName => {
@@ -366,7 +349,7 @@ const REPLY_MARKERS = [
   /(^|\n)\s*日\s*期[:：]\s*.+/i,
   /(^|\n)\s*收件人[:：]\s*.+/i,
   /(^|\n)\s*主\s*题[:：]\s*.+/i,
-  /(^|\n)\s*抄\s*送[:：]\s*.+/i,
+  /(^|\n)\s*抄\s*ส่ง[:：]\s*.+/i,
   /(^|\n)\s*-{20,}\s*($|\n)/,        
   /(^|\n)\s*_{20,}\s*($|\n)/         
 ];
@@ -450,78 +433,112 @@ function decodePartBody(part){
   return body;
 }
 
-/* =============== blocks extractor =============== */
+/* =============== 核心修復：強制重建完整且帶參數的標準網址 =============== */
 function buildCanonicalLinkFromText(text){
-  const t = decodeEntities(text);
+  let t = decodeEntities(String(text || ''));
+  // 清洗郵件斷行、空白與所有 =3D 編碼
+  t = t.replace(/=\r?\n/g, '').replace(/\r?\n/g, '').replace(/=3D/g, '=');
+
+  // 直接從文字中精準擷取各個必要參數
   const p = (t.match(/\bAWBPrefix\s*=\s*([0-9]{3})\b/i) || [])[1] || '';
   const n = (t.match(/\bAWBNum\s*=\s*([0-9]{8})\b/i) || [])[1] || '';
   const k = (t.match(/\bAccessKey\s*=\s*([A-Za-z0-9]+)\b/i) || [])[1] || '';
   const c = (t.match(/\bPromoCity\s*=\s*([A-Za-z]{3})\b/i) || [])[1] || 'HKG';
+
+  // 如果參數完整，直接拼湊出乾淨、完整的網址
   if (p && n && k) {
     return `https://www.ezycargo.com/ezycargo/usrapps/Login/AnonymousLogin.aspx?AWBPrefix=${p}&AWBNum=${n}&AccessKey=${k}&PromoCity=${c}`;
   }
+
+  // 備用：若找不到獨立參數，嘗試直接找網址並把後面殘留的 = 符號或斷行清掉
+  const urlMatch = t.match(/https?:\/\/[^\s<>"]+AnonymousLogin\.aspx[^\s<>"]+/i);
+  if (urlMatch) {
+    let cleanUrl = urlMatch[0];
+    while (cleanUrl.includes('=3D')) cleanUrl = cleanUrl.replaceAll('=3D', '=');
+    // 去除結尾可能多餘的符號或空白
+    cleanUrl = cleanUrl.replace(/[\s>="]+$/, '');
+    return normalizeLink(cleanUrl);
+  }
+
   return '';
 }
 
 function extractAllBlocks(text){
   const src = decodeEntities(String(text||'').replace(/\r/g,''));
   
-  const regex = /(?:Air\s*Waybill\s*Co-loaded\s*by\s*([^\n\r]+)[\s\S]*?)?Air\s*Waybill\s*No\.\s*:\s*(\d{3}-\d{8})[\s\S]*?EzyCargo\s*Activation\s*Key\s*:\s*([A-F0-9]+)[\s\S]*?(https:\/\/www\.ezycargo\.com\/[^\s\r\n]+)/gi;
-  
+  // 透過寬鬆的結構抓取每一個提單區塊
+  const lines = src.split('\n');
   const blocks = [];
-  let match;
+  let buf = [];
+  let capturing = false;
 
-  while ((match = regex.exec(src)) !== null) {
-    const rawMatch = match[0].trim();
-    if (isValidBlock(rawMatch)) {
-      blocks.push(rawMatch);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/Air\s*Waybill\s*No\./i.test(line) || /Air\s*Waybill\s*Co-loaded\s*by/i.test(line)) {
+      if (buf.length > 0 && isValidBlock(buf.join('\n'))) {
+        blocks.push(buf.join('\n').trim());
+      }
+      buf = [line];
+      capturing = true;
+      continue;
+    }
+    if (capturing) {
+      buf.push(line);
+      // 如果遇到下一個單號或結尾，可以切分，此處簡單以累積一定行數或空白行控制
+      if (buf.length > 25) {
+        if (isValidBlock(buf.join('\n'))) {
+          blocks.push(buf.join('\n').trim());
+        }
+        buf = [];
+        capturing = false;
+      }
     }
   }
+  if (buf.length > 0 && isValidBlock(buf.join('\n'))) {
+    blocks.push(buf.join('\n').trim());
+  }
 
+  // 若上方區塊法沒抓到，改用全域正規表達式備用
   if (blocks.length === 0) {
-    const lines = src.split('\n');
-    let buf = null;
-    for (let i=0;i<lines.length;i++){
-      const t = lines[i].trim();
-      if (!t) continue;
-      if (/Air\s+Waybill\s+Co-loaded\s+by/i.test(t) || /Air\s+Waybill\s+No\./i.test(t)){
-        if(buf && isValidBlock(buf.join('\n'))) blocks.push(buf.join('\n').trim());
-        buf = [t]; continue;
-      }
-      if (!buf) continue;
-      buf.push(t);
+    const regex = /Air\s*Waybill\s*No\.\s*:\s*[0-9]{3}-[0-9]{8}[\s\S]*?(?:https?:\/\/|AWBPrefix)[^\r\n]+/gi;
+    let m;
+    while ((m = regex.exec(src)) !== null) {
+      if (isValidBlock(m[0])) blocks.push(m[0].trim());
     }
-    if (buf && isValidBlock(buf.join('\n'))) blocks.push(buf.join('\n').trim());
   }
 
-  return blocks.map(b=>{
-    const c = normalizeLink(buildCanonicalLinkFromText(b)) || '';
-    if (!c) return b;
-    const lines2 = b.split('\n');
+  // 確保每一個區塊內部的連結都被替換成重建後的完整標準網址
+  return blocks.map(b => {
+    const canonical = buildCanonicalLinkFromText(b);
+    if (!canonical) return b;
+    
+    // 將區塊內的網址替換為完整網址
+    let lines2 = b.split('\n');
     let replaced = false;
-    for (let j=lines2.length-1;j>=0;j--){
-      if (/AnonymousLogin\.aspx/i.test(lines2[j])){
-        lines2[j] = c; replaced = true; break;
+    for (let j = 0; j < lines2.length; j++) {
+      if (/AnonymousLogin\.aspx/i.test(lines2[j]) || /AWBPrefix/i.test(lines2[j])) {
+        lines2[j] = canonical;
+        replaced = true;
       }
     }
-    return replaced ? lines2.join('\n') : (b + '\n' + c);
+    return replaced ? lines2.join('\n') : (b + '\n' + canonical);
   }).filter(isValidBlock);
 }
 
 function isValidBlock(block){
   if (!/Air\s*Waybill\s*No\.\s*:\s*[0-9]{3}-[0-9]{8}/i.test(block)) return false;
-  if (!/Activation\s*Key/i.test(block)) return false;
-  return /AnonymousLogin\.aspx/i.test(block) || (/\bAWBPrefix\s*=\s*[0-9]{3}\b/i.test(block) && /\bAWBNum\s*=\s*[0-9]{8}\b/i.test(block));
+  return /AnonymousLogin\.aspx/i.test(block) || /\bAWBPrefix\s*=\s*[0-9]{3}\b/i.test(block) || /\bAccessKey\b/i.test(block);
 }
+
 function extractMawbFromBlock(block){
   const m = String(block||'').match(/Air\s*Waybill\s*No\.\s*:\s*([0-9]{3}-[0-9]{8})/i);
   return m ? m[1] : '';
 }
+
 function extractLinkFromBlock(block){
-  const m = String(block||'').match(/https?:\/\/\S*AnonymousLogin\.aspx\?\S+/i);
-  if (m) return normalizeLink(m[0]);
   return normalizeLink(buildCanonicalLinkFromText(block));
 }
+
 function classifyResult(block, mawb, link){
   if (!block) return { status:'fail', reason:'找不到區塊' };
   const miss = [];
@@ -920,7 +937,7 @@ function clearAll(){
   toast('資料庫已清空'); 
 }
 
-/* =============== 數據匯出與進階富文本複製功能 =============== */
+/* =============== 數據匯出與富文本複製功能 =============== */
 function linkifyHtmlFromText(text){
   return escapeHtml(String(text || ''))
     .replace(/(https?:\/\/[^\s<>"']+)/g, (m) => `<a href="${escapeAttr(normalizeLink(m))}">${escapeHtml(m)}</a>`)
@@ -971,7 +988,6 @@ function copyList(st) {
   navigator.clipboard.writeText(target); toast(`已複製清單`);
 }
 
-/* 🆕 Copy 搜尋不到的提單號功能 */
 function copyNotFoundList(){
   const notFoundList = getNotFoundKeywords();
   if (!notFoundList.length) return toast('無找不到的提單號');
